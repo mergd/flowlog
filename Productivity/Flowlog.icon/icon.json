@@ -1,0 +1,36 @@
+{
+  "fill" : {
+    "solid" : "srgb:0.89412,0.91373,0.94510,1.00000"
+  },
+  "fill-specializations" : [
+    {
+      "appearance" : "dark",
+      "value" : {
+        "solid" : "srgb:0.82000,0.84000,0.87000,1.00000"
+      }
+    }
+  ],
+  "groups" : [
+    {
+      "name" : "ring",
+      "layers" : [
+        {
+          "hidden" : false,
+          "image-name" : "track.png",
+          "name" : "track"
+        },
+        {
+          "hidden" : false,
+          "image-name" : "progress.png",
+          "name" : "progress"
+        }
+      ]
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}
