@@ -100,7 +100,7 @@ struct OnboardingView: View {
         case .finish:
             Text("Ready")
                 .font(.system(size: 22, weight: .semibold, design: .rounded))
-            Text("\(AppInfo.name) lives in your menu bar and starts automatically at login. Open it anytime for Today, Timeline, and your work log.")
+            Text("\(AppInfo.name) lives in your menu bar and starts automatically at login. Open it anytime for Today, Timeline, and Apps.")
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -126,7 +126,7 @@ struct OnboardingView: View {
             VStack(alignment: .leading, spacing: 10) {
                 welcomeFeature("clock.arrow.circlepath", "Logs apps, window titles, and sessions as you work")
                 welcomeFeature("chart.pie.fill", "Scores your day as productive, neutral, or distracting")
-                welcomeFeature("menubar.arrow.down.rectangle", "Lives in the menu bar. Open anytime for Today, timeline, and your work log")
+                welcomeFeature("menubar.arrow.down.rectangle", "Lives in the menu bar. Open anytime for Today, Timeline, and Apps")
             }
         }
     }

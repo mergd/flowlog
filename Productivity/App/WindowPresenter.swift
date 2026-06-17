@@ -64,6 +64,7 @@ enum WindowPresenter {
     private static func bringOnboardingWindowToFront() {
         guard let app = NSApp else { return }
         for window in app.windows where window.matches(id: "onboarding") {
+            window.flowlogEnsureVisible()
             window.makeKeyAndOrderFront(nil)
             window.orderFrontRegardless()
             return
@@ -73,9 +74,38 @@ enum WindowPresenter {
     private static func bringDashboardWindowToFront() {
         guard let app = NSApp else { return }
         for window in app.windows where window.matches(id: "dashboard") {
+            window.flowlogEnsureVisible()
             window.makeKeyAndOrderFront(nil)
             window.orderFrontRegardless()
             return
+        }
+    }
+}
+
+extension NSWindow {
+    func flowlogEnsureVisible() {
+        if frame.width < 200 || frame.height < 200 {
+            setContentSize(NSSize(
+                width: DashboardTheme.defaultWidth,
+                height: DashboardTheme.defaultHeight
+            ))
+        }
+
+        guard let screen = screen ?? NSScreen.main else {
+            center()
+            return
+        }
+
+        let visible = screen.visibleFrame
+        let frame = self.frame
+        let margin: CGFloat = 48
+        let offscreen = frame.maxY < visible.minY + margin
+            || frame.minY > visible.maxY - margin
+            || frame.maxX < visible.minX + margin
+            || frame.minX > visible.maxX - margin
+
+        if offscreen {
+            center()
         }
     }
 }

@@ -30,7 +30,6 @@ final class DatabaseManager: @unchecked Sendable {
         migrator.registerMigration("v1") { db in
             try Session.createTable(db)
             try Rule.createTable(db)
-            try WorkLogEntry.createTable(db)
         }
         return migrator
     }
@@ -177,12 +176,6 @@ final class DatabaseManager: @unchecked Sendable {
     func allRules() throws -> [Rule] {
         try queue.read { db in
             try Rule.order(Rule.Columns.createdAt.desc).fetchAll(db)
-        }
-    }
-
-    func workLogs(limit: Int = 20) throws -> [WorkLogEntry] {
-        try queue.read { db in
-            try WorkLogEntry.order(WorkLogEntry.Columns.createdAt.desc).limit(limit).fetchAll(db)
         }
     }
 }

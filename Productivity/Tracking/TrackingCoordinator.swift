@@ -10,7 +10,6 @@ final class TrackingCoordinator: ObservableObject {
     private var pollTimer: Timer?
     private var screenshotTimer: Timer?
     private var purgeTimer: Timer?
-    private var workLogTimer: Timer?
 
     private var currentApp: NSRunningApplication?
     private var currentTitle: String?
@@ -54,10 +53,6 @@ final class TrackingCoordinator: ObservableObject {
             ScreenshotStore.shared.purgeOlderThan()
         }
 
-        workLogTimer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { _ in
-            Task { await self.generateHourlyWorkLogIfNeeded() }
-        }
-
         ScreenshotStore.shared.purgeOlderThan()
         NudgeEngine.shared.start()
         isTracking = true
@@ -69,7 +64,6 @@ final class TrackingCoordinator: ObservableObject {
         pollTimer?.invalidate()
         screenshotTimer?.invalidate()
         purgeTimer?.invalidate()
-        workLogTimer?.invalidate()
         NudgeEngine.shared.stop()
         Task {
             await track("close session on stop") { try await recorder.closeCurrentSession() }
@@ -94,13 +88,6 @@ final class TrackingCoordinator: ObservableObject {
         guard let app = WorkspaceMonitor.frontmostApplication else { return }
         let bundleId = app.bundleIdentifier ?? ""
 
-        if IdleMonitor.isIdle {
-            await track("pause for idle") { try await recorder.setIdlePaused(true) }
-            refreshMenuBarSession()
-            return
-        }
-        await track("resume from idle") { try await recorder.setIdlePaused(false) }
-
         if app != currentApp {
             await handleAppSwitch(app)
             return
@@ -108,6 +95,10 @@ final class TrackingCoordinator: ObservableObject {
 
         let title = WindowTitleReader.focusedWindowTitle(for: app)
         guard title != currentTitle else {
+            let hasSession = await recorder.hasActiveSession(for: bundleId)
+            if !hasSession {
+                await openSession(for: app, title: title)
+            }
             await track("tick duration") { try await recorder.tickDuration() }
             refreshMenuBarSession()
             return
@@ -310,27 +301,8 @@ final class TrackingCoordinator: ObservableObject {
         return parsed
     }
 
-    private func generateHourlyWorkLogIfNeeded() async {
-        let hour = Calendar.current.component(.hour, from: Date())
-        let start = AppSettings.shared.workHoursStart
-        let end = AppSettings.shared.workHoursEnd
-        guard hour >= start, hour < end else { return }
-        let periodEnd = Date()
-        let periodStart = periodEnd.addingTimeInterval(-3600)
-        await track("generate work log") {
-            _ = try await WorkLogGenerator.shared.generate(for: periodStart, periodEnd: periodEnd)
-        }
-    }
-
     func refreshMenuBarSession() {
         Task {
-            let isIdle = IdleMonitor.isIdle
-
-            if isIdle {
-                menuBarSession = frontmostSessionInfo(category: nil, startedAt: nil, isIdle: true)
-                return
-            }
-
             do {
                 if let snapshot = try await recorder.currentSnapshot() {
                     menuBarSession = MenuBarSessionInfo(
@@ -339,8 +311,7 @@ final class TrackingCoordinator: ObservableObject {
                         siteLabel: snapshot.siteLabel,
                         windowTitle: snapshot.windowTitle,
                         category: snapshot.category,
-                        startedAt: snapshot.startedAt,
-                        isIdle: false
+                        startedAt: snapshot.startedAt
                     )
                     return
                 }
@@ -348,7 +319,7 @@ final class TrackingCoordinator: ObservableObject {
                 FlowlogLog.tracking("Menu bar snapshot failed: \(error.localizedDescription)")
             }
 
-            menuBarSession = frontmostSessionInfo(category: nil, startedAt: nil, isIdle: false)
+            menuBarSession = frontmostSessionInfo(category: nil, startedAt: nil)
         }
     }
 
@@ -362,8 +333,7 @@ final class TrackingCoordinator: ObservableObject {
 
     private func frontmostSessionInfo(
         category: ActivityCategory?,
-        startedAt: Date?,
-        isIdle: Bool
+        startedAt: Date?
     ) -> MenuBarSessionInfo? {
         let app = currentApp ?? WorkspaceMonitor.frontmostApplication
         guard let app, let bundleId = app.bundleIdentifier else { return nil }
@@ -377,8 +347,7 @@ final class TrackingCoordinator: ObservableObject {
             siteLabel: nil,
             windowTitle: currentTitle,
             category: category,
-            startedAt: startedAt,
-            isIdle: isIdle
+            startedAt: startedAt
         )
     }
 }

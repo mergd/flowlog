@@ -5,7 +5,6 @@ actor SessionRecorder {
     private var currentSessionId: Int64?
     private var currentKey: String?
     private var currentBundleId: String?
-    private var pausedForIdle = false
 
     func openSession(
         bundleId: String,
@@ -45,7 +44,6 @@ actor SessionRecorder {
         currentSessionId = insertedId
         currentKey = key
         currentBundleId = bundleId
-        pausedForIdle = false
     }
 
     func updateCurrentSession(
@@ -87,21 +85,12 @@ actor SessionRecorder {
     }
 
     func tickDuration() async throws {
-        guard let id = currentSessionId, !pausedForIdle else { return }
+        guard let id = currentSessionId else { return }
         try await DatabaseManager.shared.queue.write { db in
             if var session = try Session.fetchOne(db, key: id) {
                 session.duration = Date().timeIntervalSince(session.start)
                 try session.update(db)
             }
-        }
-    }
-
-    func setIdlePaused(_ paused: Bool) async throws {
-        if paused && !pausedForIdle {
-            try await closeCurrentSession(markIdleExcluded: true)
-            pausedForIdle = true
-        } else if !paused {
-            pausedForIdle = false
         }
     }
 

@@ -29,6 +29,7 @@ enum DashboardWindowHost {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
         controller?.showWindow(nil)
+        controller?.window?.flowlogEnsureVisible()
         controller?.window?.makeKeyAndOrderFront(nil)
         controller?.window?.orderFrontRegardless()
     }

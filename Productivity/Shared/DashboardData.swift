@@ -20,8 +20,4 @@ enum DashboardData {
     static func allRules() -> [Rule] {
         (try? DatabaseManager.shared.allRules()) ?? []
     }
-
-    static func workLogs() -> [WorkLogEntry] {
-        (try? DatabaseManager.shared.workLogs()) ?? []
-    }
 }

@@ -47,7 +47,7 @@
 		D4E5F60718293A4B5C6D7F0 /* DashboardWindowHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/App/DashboardWindowHost.swift"; sourceTree = SOURCE_ROOT; };
 		D4E5F60718293A4B5C6D7F2 /* WindowChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/App/WindowChrome.swift"; sourceTree = SOURCE_ROOT; };
 		L0G1N1T3M4N4G3R5F1L3E0A /* LoginItemManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/App/LoginItemManager.swift"; sourceTree = SOURCE_ROOT; };
-		FA4B150F4FFFDD6AABA1CA49 /* WorkLogGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/WorkLog/WorkLogGenerator.swift"; sourceTree = SOURCE_ROOT; };
+		C1A5S51F1C4T10NTYP35F1L3 /* ClassificationTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Classification/ClassificationTypes.swift"; sourceTree = SOURCE_ROOT; };
 		EEE203EF4B1CEB2DB23F281B /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Shared/AppSettings.swift"; sourceTree = SOURCE_ROOT; };
 		A7C4T4L0G5H4R3D2F1L3E0A /* AppCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Shared/AppCatalog.swift"; sourceTree = SOURCE_ROOT; };
 		A1A1NT3LL1G3NC3ST4TUS1 /* AppleIntelligenceStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Shared/AppleIntelligenceStatus.swift"; sourceTree = SOURCE_ROOT; };
@@ -62,12 +62,10 @@
 		9B969BA234A7A24BB9F2CF06 /* Category.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Shared/Models/Category.swift"; sourceTree = SOURCE_ROOT; };
 		D8CF38120EF4F0C7A7AA081D /* Rule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Shared/Models/Rule.swift"; sourceTree = SOURCE_ROOT; };
 		21BB488EB66E55DD5530DD25 /* Session.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Shared/Models/Session.swift"; sourceTree = SOURCE_ROOT; };
-		E29D50404F4B4594061292C2 /* WorkLogEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Shared/Models/WorkLogEntry.swift"; sourceTree = SOURCE_ROOT; };
 		81051A183DA5D3C78A1E6E8E /* Database.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Storage/Database.swift"; sourceTree = SOURCE_ROOT; };
 		EFA47B269FF35060CB0AA0CF /* ScreenshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Storage/ScreenshotStore.swift"; sourceTree = SOURCE_ROOT; };
 		17FF586DF908C873F5357B88 /* BrowserDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Tracking/BrowserDetector.swift"; sourceTree = SOURCE_ROOT; };
 		937119C89B63DB559E831D71 /* DesktopScreenshotCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Tracking/DesktopScreenshotCapture.swift"; sourceTree = SOURCE_ROOT; };
-		B7CE78B71E0EE95A20FE06F7 /* IdleMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Tracking/IdleMonitor.swift"; sourceTree = SOURCE_ROOT; };
 		DDC3CD5C8B1490D6CAF00456 /* ScreenshotPreprocessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Tracking/ScreenshotPreprocessor.swift"; sourceTree = SOURCE_ROOT; };
 		7B0D35DB7799337D2E98322A /* SessionRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Tracking/SessionRecorder.swift"; sourceTree = SOURCE_ROOT; };
 		M3NUB4RS3SS10N1NF0F1L3E0A /* MenuBarSessionInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Tracking/MenuBarSessionInfo.swift"; sourceTree = SOURCE_ROOT; };
@@ -86,7 +84,6 @@
 		B3194D87A84723F1E311B61D /* TimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Views/TimelineView.swift"; sourceTree = SOURCE_ROOT; };
 		8DB2794100F1660CCCF193F9 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Views/TodayView.swift"; sourceTree = SOURCE_ROOT; };
 		C4L3ND4RV13W5F1L3E0A1 /* CalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Views/CalendarView.swift"; sourceTree = SOURCE_ROOT; };
-		577213073877302A50265197 /* WorkLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Views/WorkLogView.swift"; sourceTree = SOURCE_ROOT; };
 		0848FADA126523A47494DEB6 /* NudgeEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Nudges/NudgeEngine.swift"; sourceTree = SOURCE_ROOT; };
 		A1C0N1C0A55E7C4A7A1C0N1D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Productivity/Assets.xcassets"; sourceTree = SOURCE_ROOT; };
 		F10WLOG1C0NA55E7C4A7A1D /* Flowlog.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = "Productivity/Flowlog.icon"; sourceTree = SOURCE_ROOT; };
@@ -102,7 +99,7 @@
 		D4E5F60718293A4B5C6D7F1 /* DashboardWindowHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F60718293A4B5C6D7F0 /* DashboardWindowHost.swift */; };
 		D4E5F60718293A4B5C6D7F3 /* WindowChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F60718293A4B5C6D7F2 /* WindowChrome.swift */; };
 		L0G1N1T3M4N4G3R5F1L3E0B /* LoginItemManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = L0G1N1T3M4N4G3R5F1L3E0A /* LoginItemManager.swift */; };
-		34343E871016DA09F13E9BEA /* WorkLogGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA4B150F4FFFDD6AABA1CA49 /* WorkLogGenerator.swift */; };
+		C1A5S51F1C4T10NTYP35F1L4 /* ClassificationTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A5S51F1C4T10NTYP35F1L3 /* ClassificationTypes.swift */; };
 		6D96CD6327BAC456381E0EA5 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEE203EF4B1CEB2DB23F281B /* AppSettings.swift */; };
 		A7C4T4L0G5H4R3D2F1L3E0B /* AppCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7C4T4L0G5H4R3D2F1L3E0A /* AppCatalog.swift */; };
 		A1A1NT3LL1G3NC3ST4TUS2 /* AppleIntelligenceStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1A1NT3LL1G3NC3ST4TUS1 /* AppleIntelligenceStatus.swift */; };
@@ -117,12 +114,10 @@
 		C6EA38BFB39E4624A7ABE826 /* Category.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B969BA234A7A24BB9F2CF06 /* Category.swift */; };
 		C106CB0EE567FC91FF051858 /* Rule.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8CF38120EF4F0C7A7AA081D /* Rule.swift */; };
 		B533D47663BADA441FE73050 /* Session.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21BB488EB66E55DD5530DD25 /* Session.swift */; };
-		FC96FDEF92F5F3669D87835E /* WorkLogEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E29D50404F4B4594061292C2 /* WorkLogEntry.swift */; };
 		3CC77F7AC544B6A851E80589 /* Database.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81051A183DA5D3C78A1E6E8E /* Database.swift */; };
 		1988050E21060FD60D97AFB1 /* ScreenshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFA47B269FF35060CB0AA0CF /* ScreenshotStore.swift */; };
 		369DB235683F5B83D2F5C908 /* BrowserDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17FF586DF908C873F5357B88 /* BrowserDetector.swift */; };
 		AF2E0E6C7F3A9E9EAAAD3B2F /* DesktopScreenshotCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 937119C89B63DB559E831D71 /* DesktopScreenshotCapture.swift */; };
-		1479C5A88097C194C7838C8B /* IdleMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7CE78B71E0EE95A20FE06F7 /* IdleMonitor.swift */; };
 		C3A93BD9FC316A67BB1827F4 /* ScreenshotPreprocessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDC3CD5C8B1490D6CAF00456 /* ScreenshotPreprocessor.swift */; };
 		C3EAF37543A348EF5F306912 /* SessionRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B0D35DB7799337D2E98322A /* SessionRecorder.swift */; };
 		M3NUB4RS3SS10N1NF0F1L3E0B /* MenuBarSessionInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = M3NUB4RS3SS10N1NF0F1L3E0A /* MenuBarSessionInfo.swift */; };
@@ -141,7 +136,6 @@
 		F23E661A2E74A43AD29B457F /* TimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3194D87A84723F1E311B61D /* TimelineView.swift */; };
 		A428DDB374850F5B7983B6B3 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DB2794100F1660CCCF193F9 /* TodayView.swift */; };
 		C4L3ND4RV13W5F1L3E0A2 /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4L3ND4RV13W5F1L3E0A1 /* CalendarView.swift */; };
-		F8B0C555AFD9D6A0E7F9B726 /* WorkLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 577213073877302A50265197 /* WorkLogView.swift */; };
 		B78C80E496BC607037332CD4 /* NudgeEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0848FADA126523A47494DEB6 /* NudgeEngine.swift */; };
 		A1C0N1C0A55E7C4A7A1C0N1C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1C0N1C0A55E7C4A7A1C0N1D /* Assets.xcassets */; };
 		F10WLOG1C0NA55E7C4A7A1E /* Flowlog.icon in Resources */ = {isa = PBXBuildFile; fileRef = F10WLOG1C0NA55E7C4A7A1D /* Flowlog.icon */; };
@@ -169,7 +163,7 @@
 				D4E5F60718293A4B5C6D7F1 /* DashboardWindowHost.swift in Sources */,
 				D4E5F60718293A4B5C6D7F3 /* WindowChrome.swift in Sources */,
 				L0G1N1T3M4N4G3R5F1L3E0B /* LoginItemManager.swift in Sources */,
-				34343E871016DA09F13E9BEA /* WorkLogGenerator.swift in Sources */,
+				C1A5S51F1C4T10NTYP35F1L4 /* ClassificationTypes.swift in Sources */,
 				6D96CD6327BAC456381E0EA5 /* AppSettings.swift in Sources */,
 				A7C4T4L0G5H4R3D2F1L3E0B /* AppCatalog.swift in Sources */,
 				A1A1NT3LL1G3NC3ST4TUS2 /* AppleIntelligenceStatus.swift in Sources */,
@@ -184,12 +178,10 @@
 				C6EA38BFB39E4624A7ABE826 /* Category.swift in Sources */,
 				C106CB0EE567FC91FF051858 /* Rule.swift in Sources */,
 				B533D47663BADA441FE73050 /* Session.swift in Sources */,
-				FC96FDEF92F5F3669D87835E /* WorkLogEntry.swift in Sources */,
 				3CC77F7AC544B6A851E80589 /* Database.swift in Sources */,
 				1988050E21060FD60D97AFB1 /* ScreenshotStore.swift in Sources */,
 				369DB235683F5B83D2F5C908 /* BrowserDetector.swift in Sources */,
 				AF2E0E6C7F3A9E9EAAAD3B2F /* DesktopScreenshotCapture.swift in Sources */,
-				1479C5A88097C194C7838C8B /* IdleMonitor.swift in Sources */,
 				C3A93BD9FC316A67BB1827F4 /* ScreenshotPreprocessor.swift in Sources */,
 				C3EAF37543A348EF5F306912 /* SessionRecorder.swift in Sources */,
 				M3NUB4RS3SS10N1NF0F1L3E0B /* MenuBarSessionInfo.swift in Sources */,
@@ -208,7 +200,6 @@
 				F23E661A2E74A43AD29B457F /* TimelineView.swift in Sources */,
 				A428DDB374850F5B7983B6B3 /* TodayView.swift in Sources */,
 				C4L3ND4RV13W5F1L3E0A2 /* CalendarView.swift in Sources */,
-				F8B0C555AFD9D6A0E7F9B726 /* WorkLogView.swift in Sources */,
 				B78C80E496BC607037332CD4 /* NudgeEngine.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -237,7 +228,7 @@
 				D4E5F60718293A4B5C6D7F0 /* DashboardWindowHost.swift */,
 				D4E5F60718293A4B5C6D7F2 /* WindowChrome.swift */,
 				L0G1N1T3M4N4G3R5F1L3E0A /* LoginItemManager.swift */,
-				FA4B150F4FFFDD6AABA1CA49 /* WorkLogGenerator.swift */,
+				C1A5S51F1C4T10NTYP35F1L3 /* ClassificationTypes.swift */,
 				EEE203EF4B1CEB2DB23F281B /* AppSettings.swift */,
 				A7C4T4L0G5H4R3D2F1L3E0A /* AppCatalog.swift */,
 				A1A1NT3LL1G3NC3ST4TUS1 /* AppleIntelligenceStatus.swift */,
@@ -252,12 +243,10 @@
 				9B969BA234A7A24BB9F2CF06 /* Category.swift */,
 				D8CF38120EF4F0C7A7AA081D /* Rule.swift */,
 				21BB488EB66E55DD5530DD25 /* Session.swift */,
-				E29D50404F4B4594061292C2 /* WorkLogEntry.swift */,
 				81051A183DA5D3C78A1E6E8E /* Database.swift */,
 				EFA47B269FF35060CB0AA0CF /* ScreenshotStore.swift */,
 				17FF586DF908C873F5357B88 /* BrowserDetector.swift */,
 				937119C89B63DB559E831D71 /* DesktopScreenshotCapture.swift */,
-				B7CE78B71E0EE95A20FE06F7 /* IdleMonitor.swift */,
 				DDC3CD5C8B1490D6CAF00456 /* ScreenshotPreprocessor.swift */,
 				7B0D35DB7799337D2E98322A /* SessionRecorder.swift */,
 				M3NUB4RS3SS10N1NF0F1L3E0A /* MenuBarSessionInfo.swift */,
@@ -276,7 +265,6 @@
 				B3194D87A84723F1E311B61D /* TimelineView.swift */,
 				8DB2794100F1660CCCF193F9 /* TodayView.swift */,
 				C4L3ND4RV13W5F1L3E0A1 /* CalendarView.swift */,
-				577213073877302A50265197 /* WorkLogView.swift */,
 				0848FADA126523A47494DEB6 /* NudgeEngine.swift */,
 				A1C0N1C0A55E7C4A7A1C0N1D /* Assets.xcassets */,
 				F10WLOG1C0NA55E7C4A7A1D /* Flowlog.icon */,

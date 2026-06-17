@@ -33,10 +33,11 @@ struct ProductivityApp: App {
 
         MenuBarExtra {
             MenuBarPanel(appState: appState)
+                .background(WindowRegistration())
         } label: {
             MenuBarLabel()
         }
-        .menuBarExtraStyle(.window)
+        .menuBarExtraStyle(.menu)
 
         Settings {
             SettingsView()
@@ -62,9 +63,6 @@ private struct MenuBarLabel: View {
     var body: some View {
         Image("MenuBarIcon")
             .renderingMode(.template)
-            .resizable()
-            .scaledToFit()
-            .frame(width: 14, height: 14)
             .accessibilityLabel("Flowlog")
     }
 }

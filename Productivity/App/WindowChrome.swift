@@ -45,7 +45,7 @@ struct WindowChromeObserver: NSViewRepresentable {
     }
 }
 
-private final class WindowChromeObserverView: NSView {
+final class WindowChromeObserverView: NSView {
     var windowID: String
 
     init(windowID: String) {

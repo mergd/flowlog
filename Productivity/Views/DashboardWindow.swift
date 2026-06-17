@@ -6,14 +6,14 @@ struct DashboardWindow: View {
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
-            List(DashboardTab.allCases, selection: Bindable(appState).selectedTab) { tab in
+            List(DashboardTab.allCases, selection: $appState.selectedTab) { tab in
                 Label(tab.title, systemImage: tab.icon)
                     .tag(tab)
             }
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
             .background(DashboardTheme.surface)
-            .navigationSplitViewColumnWidth(min: 160, ideal: 168, max: 220)
+            .navigationSplitViewColumnWidth(168)
         } detail: {
             detail
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -43,7 +43,6 @@ struct DashboardWindow: View {
             switch appState.selectedTab {
             case .today: TodayView()
             case .calendar: CalendarView()
-            case .workLog: WorkLogView()
             case .timeline: TimelineView()
             case .apps: AppsView()
             case .rules: RulesView()

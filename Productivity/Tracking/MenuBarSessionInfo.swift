@@ -7,7 +7,6 @@ struct MenuBarSessionInfo: Equatable, Sendable {
     let windowTitle: String?
     let category: ActivityCategory?
     let startedAt: Date?
-    let isIdle: Bool
 
     var title: String {
         SiteCatalog.displayTitle(
