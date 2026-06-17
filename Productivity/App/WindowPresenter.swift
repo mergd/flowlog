@@ -90,50 +90,13 @@ struct HiddenTitleBar: ViewModifier {
     let windowID: String
 
     func body(content: Content) -> some View {
-        content.background(TitleBarConfigurator(windowID: windowID))
+        content.observeWindowChrome(id: windowID)
     }
 }
 
 extension View {
     func hiddenTitleBar(id: String) -> some View {
         modifier(HiddenTitleBar(windowID: id))
-    }
-}
-
-private struct TitleBarConfigurator: NSViewRepresentable {
-    let windowID: String
-
-    func makeNSView(context: Context) -> TitleBarConfiguratorView {
-        TitleBarConfiguratorView(windowID: windowID)
-    }
-
-    func updateNSView(_ nsView: TitleBarConfiguratorView, context: Context) {
-        nsView.windowID = windowID
-        nsView.applyChromeIfNeeded()
-    }
-}
-
-private final class TitleBarConfiguratorView: NSView {
-    var windowID: String
-
-    init(windowID: String) {
-        self.windowID = windowID
-        super.init(frame: .zero)
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        nil
-    }
-
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        applyChromeIfNeeded()
-    }
-
-    func applyChromeIfNeeded() {
-        guard let window else { return }
-        WindowChrome.apply(to: window, id: windowID)
     }
 }
 

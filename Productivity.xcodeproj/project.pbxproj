@@ -57,6 +57,7 @@
 		F1A2B3C4D5E60718293A4B5D /* AppInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Shared/AppInfo.swift"; sourceTree = SOURCE_ROOT; };
 		A1B2C3D4E5F60718293A4B5C /* Permissions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Shared/Permissions.swift"; sourceTree = SOURCE_ROOT; };
 		F10WLOG0G5H4R3D2F1L0G0A /* FlowlogLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Shared/FlowlogLog.swift"; sourceTree = SOURCE_ROOT; };
+		D4SHB04RD4T4H3LP3R5W1FT /* DashboardData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Shared/DashboardData.swift"; sourceTree = SOURCE_ROOT; };
 		SY5T3M5ETT1NG5H4R3D2F1L3 /* SystemSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Shared/SystemSettings.swift"; sourceTree = SOURCE_ROOT; };
 		9B969BA234A7A24BB9F2CF06 /* Category.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Shared/Models/Category.swift"; sourceTree = SOURCE_ROOT; };
 		D8CF38120EF4F0C7A7AA081D /* Rule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Shared/Models/Rule.swift"; sourceTree = SOURCE_ROOT; };
@@ -111,6 +112,7 @@
 		F1A2B3C4D5E60718293A4B5E /* AppInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E60718293A4B5D /* AppInfo.swift */; };
 		B2C3D4E5F60718293A4B5C6D /* Permissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5C /* Permissions.swift */; };
 		F10WLOG0G5H4R3D2F1L0G0B /* FlowlogLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10WLOG0G5H4R3D2F1L0G0A /* FlowlogLog.swift */; };
+		D4SHB04RD4T4H3LP3R5W1FX /* DashboardData.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4SHB04RD4T4H3LP3R5W1FT /* DashboardData.swift */; };
 		SY5T3M5ETT1NG5H4R3D2F1L4 /* SystemSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = SY5T3M5ETT1NG5H4R3D2F1L3 /* SystemSettings.swift */; };
 		C6EA38BFB39E4624A7ABE826 /* Category.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B969BA234A7A24BB9F2CF06 /* Category.swift */; };
 		C106CB0EE567FC91FF051858 /* Rule.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8CF38120EF4F0C7A7AA081D /* Rule.swift */; };
@@ -177,6 +179,7 @@
 				F1A2B3C4D5E60718293A4B5E /* AppInfo.swift in Sources */,
 				B2C3D4E5F60718293A4B5C6D /* Permissions.swift in Sources */,
 				F10WLOG0G5H4R3D2F1L0G0B /* FlowlogLog.swift in Sources */,
+				D4SHB04RD4T4H3LP3R5W1FX /* DashboardData.swift in Sources */,
 				SY5T3M5ETT1NG5H4R3D2F1L4 /* SystemSettings.swift in Sources */,
 				C6EA38BFB39E4624A7ABE826 /* Category.swift in Sources */,
 				C106CB0EE567FC91FF051858 /* Rule.swift in Sources */,
@@ -244,6 +247,7 @@
 				F1A2B3C4D5E60718293A4B5D /* AppInfo.swift */,
 				A1B2C3D4E5F60718293A4B5C /* Permissions.swift */,
 				F10WLOG0G5H4R3D2F1L0G0A /* FlowlogLog.swift */,
+				D4SHB04RD4T4H3LP3R5W1FT /* DashboardData.swift */,
 				SY5T3M5ETT1NG5H4R3D2F1L3 /* SystemSettings.swift */,
 				9B969BA234A7A24BB9F2CF06 /* Category.swift */,
 				D8CF38120EF4F0C7A7AA081D /* Rule.swift */,

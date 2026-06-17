@@ -17,6 +17,12 @@ struct CalendarView: View {
         return formatter
     }()
 
+    private static let dayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .full
+        return formatter
+    }()
+
     var body: some View {
         Group {
             if sessions.isEmpty {
@@ -42,14 +48,11 @@ struct CalendarView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .dashboardSurface()
-        .onAppear(perform: reload)
-        .onReceive(NotificationCenter.default.publisher(for: .productivityDataDidChange)) { _ in reload() }
+        .dashboardAutoReload(reload)
     }
 
     private var daySubtitle: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .full
-        return formatter.string(from: Date())
+        Self.dayFormatter.string(from: Date())
     }
 
     private var hourLabels: some View {
@@ -150,7 +153,7 @@ struct CalendarView: View {
     }
 
     private func reload() {
-        sessions = (try? DatabaseManager.shared.sessionsToday()) ?? []
+        sessions = DashboardData.sessionsToday()
             .sorted { $0.start < $1.start }
     }
 }

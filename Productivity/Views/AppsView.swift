@@ -54,8 +54,7 @@ struct AppsView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .dashboardSurface()
-        .onAppear(perform: reload)
-        .onReceive(NotificationCenter.default.publisher(for: .productivityDataDidChange)) { _ in reload() }
+        .dashboardAutoReload(reload)
     }
 
     private func appRow(_ group: AppUsageGroup) -> some View {
@@ -147,6 +146,6 @@ struct AppsView: View {
     }
 
     private func reload() {
-        groups = (try? DatabaseManager.shared.usageBreakdownToday()) ?? []
+        groups = DashboardData.usageBreakdownToday()
     }
 }

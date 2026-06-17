@@ -69,7 +69,7 @@ struct WorkLogView: View {
     }
 
     private func reload() {
-        logs = (try? DatabaseManager.shared.workLogs()) ?? []
+        logs = DashboardData.workLogs()
     }
 
     private func generateLastHour() async {

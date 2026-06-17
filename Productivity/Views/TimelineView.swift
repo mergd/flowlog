@@ -44,8 +44,7 @@ struct TimelineView: View {
                     .padding()
             }
         }
-        .onAppear(perform: reload)
-        .onReceive(NotificationCenter.default.publisher(for: .productivityDataDidChange)) { _ in reload() }
+        .dashboardAutoReload(reload)
     }
 
     private func timelineRow(_ session: Session) -> some View {
@@ -112,7 +111,7 @@ struct TimelineView: View {
     }
 
     private func reload() {
-        sessions = (try? DatabaseManager.shared.sessionsToday()) ?? []
+        sessions = DashboardData.sessionsToday()
     }
 }
 

@@ -176,7 +176,7 @@ struct RulesView: View {
     }
 
     private func reload() {
-        rules = (try? DatabaseManager.shared.allRules()) ?? []
+        rules = DashboardData.allRules()
     }
 
     private func saveRule() {

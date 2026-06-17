@@ -1,16 +1,5 @@
 import SwiftUI
 
-struct CategoryColors {
-    static func color(for category: ActivityCategory) -> Color {
-        switch category {
-        case .productive: Color(red: 0.28, green: 0.78, blue: 0.58)
-        case .neutral: Color.secondary.opacity(0.55)
-        case .distracting: Color(red: 0.92, green: 0.38, blue: 0.42)
-        case .uncategorized: Color.secondary.opacity(0.35)
-        }
-    }
-}
-
 struct TodayView: View {
     @State private var totals: [String: TimeInterval] = [:]
     @State private var score: Int?
@@ -37,8 +26,7 @@ struct TodayView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .dashboardSurface()
-        .onAppear(perform: reload)
-        .onReceive(NotificationCenter.default.publisher(for: .productivityDataDidChange)) { _ in reload() }
+        .dashboardAutoReload(reload)
     }
 
     private var trackedContent: some View {
@@ -76,7 +64,7 @@ struct TodayView: View {
                             Text(cat.displayName)
                                 .font(.subheadline)
                             Spacer()
-                            Text(format(seconds))
+                            Text(DurationFormatting.short(seconds, zeroLabel: "0m"))
                                 .font(.subheadline)
                                 .foregroundStyle(seconds > 0 ? .primary : .tertiary)
                                 .monospacedDigit()
@@ -115,16 +103,8 @@ struct TodayView: View {
     }
 
     private func reload() {
-        totals = (try? DatabaseManager.shared.categoryTotalsToday()) ?? [:]
+        totals = DashboardData.categoryTotalsToday()
         score = FocusScore.percent(from: totals)
-    }
-
-    private func format(_ seconds: TimeInterval) -> String {
-        let m = Int(seconds) / 60
-        let h = m / 60
-        if h > 0 { return "\(h)h \(m % 60)m" }
-        if m > 0 { return "\(m)m" }
-        return "0m"
     }
 }
 

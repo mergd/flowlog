@@ -92,9 +92,13 @@ final class WorkLogGenerator: @unchecked Sendable {
         return parts.joined(separator: ", ") + "."
     }
 
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter
+    }()
+
     private func format(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.timeStyle = .short
-        return f.string(from: date)
+        Self.timeFormatter.string(from: date)
     }
 }

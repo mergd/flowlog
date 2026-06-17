@@ -8,6 +8,27 @@ enum DashboardTheme {
     static let minHeight: CGFloat = 320
 }
 
+enum CategoryColors {
+    static func color(for category: ActivityCategory) -> Color {
+        switch category {
+        case .productive: Color(red: 0.28, green: 0.78, blue: 0.58)
+        case .neutral: Color.secondary.opacity(0.55)
+        case .distracting: Color(red: 0.92, green: 0.38, blue: 0.42)
+        case .uncategorized: Color.secondary.opacity(0.35)
+        }
+    }
+}
+
+enum DurationFormatting {
+    static func short(_ seconds: TimeInterval, zeroLabel: String = "<1m") -> String {
+        let m = Int(seconds) / 60
+        let h = m / 60
+        if h > 0 { return "\(h)h \(m % 60)m" }
+        if m > 0 { return "\(m)m" }
+        return zeroLabel
+    }
+}
+
 extension View {
     func dashboardSurface() -> some View {
         background(DashboardTheme.surface)
@@ -25,6 +46,11 @@ extension View {
             minHeight: DashboardTheme.minHeight,
             maxHeight: .infinity
         )
+    }
+
+    func dashboardAutoReload(_ action: @escaping () -> Void) -> some View {
+        onAppear(perform: action)
+            .onReceive(NotificationCenter.default.publisher(for: .productivityDataDidChange)) { _ in action() }
     }
 }
 
@@ -46,17 +72,9 @@ struct DurationLabel: View {
     let seconds: TimeInterval
 
     var body: some View {
-        Text(format(seconds))
+        Text(DurationFormatting.short(seconds))
             .font(.caption.weight(.medium))
             .foregroundStyle(.secondary)
             .monospacedDigit()
-    }
-
-    private func format(_ seconds: TimeInterval) -> String {
-        let m = Int(seconds) / 60
-        let h = m / 60
-        if h > 0 { return "\(h)h \(m % 60)m" }
-        if m > 0 { return "\(m)m" }
-        return "<1m"
     }
 }

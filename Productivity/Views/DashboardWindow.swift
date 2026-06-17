@@ -2,22 +2,24 @@ import SwiftUI
 
 struct DashboardWindow: View {
     @Bindable var appState: AppState
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             List(DashboardTab.allCases, selection: Bindable(appState).selectedTab) { tab in
                 Label(tab.title, systemImage: tab.icon)
                     .tag(tab)
             }
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
+            .background(DashboardTheme.surface)
             .navigationSplitViewColumnWidth(min: 160, ideal: 168, max: 220)
         } detail: {
             detail
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .navigationSplitViewStyle(.balanced)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(minWidth: DashboardTheme.minWidth, minHeight: DashboardTheme.minHeight)
         .toolbar(removing: .title)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -32,9 +34,7 @@ struct DashboardWindow: View {
         }
         .toolbarBackground(.hidden, for: .windowToolbar)
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
-        .dashboardWindowFrame()
         .dashboardSurface()
-        .background(WindowChromeSync(windowID: "dashboard"))
     }
 
     @ViewBuilder
@@ -50,42 +50,5 @@ struct DashboardWindow: View {
             case .settings: SettingsView()
             }
         }
-    }
-}
-
-private struct WindowChromeSync: NSViewRepresentable {
-    let windowID: String
-
-    func makeNSView(context: Context) -> WindowChromeSyncView {
-        WindowChromeSyncView(windowID: windowID)
-    }
-
-    func updateNSView(_ nsView: WindowChromeSyncView, context: Context) {
-        nsView.windowID = windowID
-        nsView.syncChrome()
-    }
-}
-
-private final class WindowChromeSyncView: NSView {
-    var windowID: String
-
-    init(windowID: String) {
-        self.windowID = windowID
-        super.init(frame: .zero)
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        nil
-    }
-
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        syncChrome()
-    }
-
-    func syncChrome() {
-        guard let window else { return }
-        WindowChrome.apply(to: window, id: windowID)
     }
 }

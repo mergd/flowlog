@@ -24,7 +24,10 @@ final class RulesEngine: @unchecked Sendable {
         windowTitlePatterns.removeAll()
         domainPatterns.removeAll()
 
-        guard let rules = try? DatabaseManager.shared.allRules() else { return }
+        guard let rules = try? DatabaseManager.shared.allRules() else {
+            FlowlogLog.tracking("Rules cache reload failed")
+            return
+        }
         for rule in rules {
             let result = ClassificationResult(
                 category: rule.activityCategory,

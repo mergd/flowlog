@@ -7,29 +7,23 @@ enum DashboardWindowHost {
 
     static func present(appState: AppState) {
         if controller == nil {
-            let rootView = DashboardWindow(appState: appState)
-                .hiddenTitleBar(id: "dashboard")
-
-            let hostingController = NSHostingController(rootView: rootView)
+            let hostingController = NSHostingController(
+                rootView: DashboardWindow(appState: appState)
+                    .hiddenTitleBar(id: "dashboard")
+            )
             let window = NSWindow(contentViewController: hostingController)
             WindowChrome.apply(to: window, id: "dashboard")
-
-            let size = NSSize(
-                width: DashboardTheme.defaultWidth,
-                height: DashboardTheme.defaultHeight
-            )
             window.minSize = NSSize(
                 width: DashboardTheme.minWidth,
                 height: DashboardTheme.minHeight
             )
-            window.setContentSize(size)
+            window.setContentSize(NSSize(
+                width: DashboardTheme.defaultWidth,
+                height: DashboardTheme.defaultHeight
+            ))
             window.center()
             window.isReleasedWhenClosed = false
             controller = NSWindowController(window: window)
-        }
-
-        if let window = controller?.window {
-            WindowChrome.apply(to: window, id: "dashboard")
         }
 
         NSApp.setActivationPolicy(.regular)

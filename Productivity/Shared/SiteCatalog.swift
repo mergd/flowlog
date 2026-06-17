@@ -127,18 +127,32 @@ enum SiteCatalog {
     }
 
     static func displayTitle(for session: Session) -> String {
-        if EditorContext.isEditor(bundleId: session.bundleId),
-           let file = EditorContext.parseFileName(windowTitle: session.windowTitle) {
+        displayTitle(
+            bundleId: session.bundleId,
+            appName: session.appName,
+            siteLabel: session.siteLabel,
+            windowTitle: session.windowTitle
+        )
+    }
+
+    static func displayTitle(
+        bundleId: String,
+        appName: String,
+        siteLabel: String?,
+        windowTitle: String?
+    ) -> String {
+        if EditorContext.isEditor(bundleId: bundleId),
+           let file = EditorContext.parseFileName(windowTitle: windowTitle) {
             return file
         }
 
-        if let siteLabel = session.siteLabel,
+        if let siteLabel,
            !siteLabel.isEmpty,
-           siteLabel.lowercased() != session.appName.lowercased() {
+           siteLabel.lowercased() != appName.lowercased() {
             return siteLabel
         }
 
-        let context = parse(windowTitle: session.windowTitle)
+        let context = parse(windowTitle: windowTitle)
         if let label = context.siteLabel, !isBrowserOnlyTitle(label) {
             return label
         }
@@ -148,33 +162,51 @@ enum SiteCatalog {
         if let domain = context.domain {
             return knownSites[normalizeDomain(domain)]?.label ?? domain
         }
-        if EditorContext.isEditor(bundleId: session.bundleId),
-           let project = EditorContext.parseProject(bundleId: session.bundleId, windowTitle: session.windowTitle) {
+        if EditorContext.isEditor(bundleId: bundleId),
+           let project = EditorContext.parseProject(bundleId: bundleId, windowTitle: windowTitle) {
             return project
         }
-        return session.appName
+        return appName
     }
 
     static func displaySubtitle(for session: Session) -> String? {
-        if EditorContext.isEditor(bundleId: session.bundleId) {
-            if let project = EditorContext.parseProject(bundleId: session.bundleId, windowTitle: session.windowTitle) {
-                let title = displayTitle(for: session)
-                if title.lowercased() != project.lowercased() {
-                    return project
-                }
+        displaySubtitle(
+            bundleId: session.bundleId,
+            appName: session.appName,
+            siteLabel: session.siteLabel,
+            windowTitle: session.windowTitle
+        )
+    }
+
+    static func displaySubtitle(
+        bundleId: String,
+        appName: String,
+        siteLabel: String?,
+        windowTitle: String?
+    ) -> String? {
+        let title = displayTitle(
+            bundleId: bundleId,
+            appName: appName,
+            siteLabel: siteLabel,
+            windowTitle: windowTitle
+        )
+
+        if EditorContext.isEditor(bundleId: bundleId) {
+            if let project = EditorContext.parseProject(bundleId: bundleId, windowTitle: windowTitle),
+               title.lowercased() != project.lowercased() {
+                return project
             }
-            if displayTitle(for: session).lowercased() != session.appName.lowercased() {
-                return session.appName
+            if title.lowercased() != appName.lowercased() {
+                return appName
             }
             return nil
         }
 
-        let context = parse(windowTitle: session.windowTitle)
-        let title = displayTitle(for: session)
+        let context = parse(windowTitle: windowTitle)
 
-        if BrowserDetector.isBrowser(session.bundleId) {
-            if session.appName.lowercased() != title.lowercased() {
-                return session.appName
+        if BrowserDetector.isBrowser(bundleId) {
+            if appName.lowercased() != title.lowercased() {
+                return appName
             }
             if let pageTitle = context.pageTitle,
                pageTitle.lowercased() != title.lowercased() {
@@ -188,10 +220,10 @@ enum SiteCatalog {
             return nil
         }
 
-        if let windowTitle = session.windowTitle,
+        if let windowTitle,
            !windowTitle.isEmpty,
            windowTitle != title,
-           windowTitle != session.appName {
+           windowTitle != appName {
             return windowTitle
         }
         return nil

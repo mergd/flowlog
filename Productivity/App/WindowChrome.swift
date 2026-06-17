@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 
 enum WindowChrome {
     private static let lock = NSLock()
@@ -28,6 +29,48 @@ enum WindowChrome {
         window.isMovableByWindowBackground = true
         window.backgroundColor = NSColor.windowBackgroundColor
         window.isOpaque = true
-        window.toolbar = nil
+    }
+}
+
+struct WindowChromeObserver: NSViewRepresentable {
+    let windowID: String
+
+    func makeNSView(context: Context) -> WindowChromeObserverView {
+        WindowChromeObserverView(windowID: windowID)
+    }
+
+    func updateNSView(_ nsView: WindowChromeObserverView, context: Context) {
+        nsView.windowID = windowID
+        nsView.applyIfNeeded()
+    }
+}
+
+private final class WindowChromeObserverView: NSView {
+    var windowID: String
+
+    init(windowID: String) {
+        self.windowID = windowID
+        super.init(frame: .zero)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        applyIfNeeded()
+    }
+
+    func applyIfNeeded() {
+        guard let window else { return }
+        WindowChrome.apply(to: window, id: windowID)
+    }
+}
+
+extension View {
+    func observeWindowChrome(id: String) -> some View {
+        background(WindowChromeObserver(windowID: id))
     }
 }
