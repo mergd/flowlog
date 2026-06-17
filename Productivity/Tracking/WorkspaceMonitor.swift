@@ -7,47 +7,48 @@ final class WorkspaceMonitor {
     var onWake: (() -> Void)?
     var onScreenChange: (() -> Void)?
 
-    private var observers: [NSObjectProtocol] = []
+    private var observers: [(center: NotificationCenter, token: NSObjectProtocol)] = []
 
     func start() {
-        let center = NSWorkspace.shared.notificationCenter
+        let workspaceCenter = NSWorkspace.shared.notificationCenter
         let ws = NSWorkspace.shared
 
-        observers.append(center.addObserver(
+        observers.append((workspaceCenter, workspaceCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification,
             object: nil,
             queue: .main
         ) { [weak self] note in
             guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
             self?.onActivate?(app)
-        })
+        }))
 
-        observers.append(center.addObserver(
+        observers.append((workspaceCenter, workspaceCenter.addObserver(
             forName: NSWorkspace.didDeactivateApplicationNotification,
             object: nil,
             queue: .main
         ) { [weak self] note in
             guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
             self?.onDeactivate?(app)
-        })
+        }))
 
-        observers.append(center.addObserver(
+        observers.append((workspaceCenter, workspaceCenter.addObserver(
             forName: NSWorkspace.willSleepNotification,
             object: nil,
             queue: .main
-        ) { [weak self] _ in self?.onSleep?() })
+        ) { [weak self] _ in self?.onSleep?() }))
 
-        observers.append(center.addObserver(
+        observers.append((workspaceCenter, workspaceCenter.addObserver(
             forName: NSWorkspace.didWakeNotification,
             object: nil,
             queue: .main
-        ) { [weak self] _ in self?.onWake?() })
+        ) { [weak self] _ in self?.onWake?() }))
 
-        observers.append(NotificationCenter.default.addObserver(
+        let defaultCenter = NotificationCenter.default
+        observers.append((defaultCenter, defaultCenter.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,
             object: nil,
             queue: .main
-        ) { [weak self] _ in self?.onScreenChange?() })
+        ) { [weak self] _ in self?.onScreenChange?() }))
 
         if let app = ws.frontmostApplication {
             onActivate?(app)
@@ -55,8 +56,8 @@ final class WorkspaceMonitor {
     }
 
     func stop() {
-        for obs in observers {
-            NotificationCenter.default.removeObserver(obs)
+        for observer in observers {
+            observer.center.removeObserver(observer.token)
         }
         observers.removeAll()
     }

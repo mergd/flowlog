@@ -306,7 +306,7 @@ struct OnboardingView: View {
         waitingForAccessibility = true
         persistOnboardingStep(.accessibility)
         WindowTitleReader.requestAccessibilityTrust()
-        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+        SystemSettings.open(.accessibility)
     }
 
     private func enableScreenRecording() {
@@ -319,6 +319,6 @@ struct OnboardingView: View {
             didPromptScreenRecording = true
             _ = Permissions.requestScreenRecordingAccess()
         }
-        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
+        SystemSettings.open(.screenCapture)
     }
 }

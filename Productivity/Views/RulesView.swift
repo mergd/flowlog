@@ -37,6 +37,7 @@ struct RulesView: View {
                 .dashboardPlainList()
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .dashboardSurface()
         .safeAreaInset(edge: .top) {
             DashboardDetailHeader(

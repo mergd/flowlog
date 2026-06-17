@@ -127,6 +127,11 @@ enum SiteCatalog {
     }
 
     static func displayTitle(for session: Session) -> String {
+        if EditorContext.isEditor(bundleId: session.bundleId),
+           let file = EditorContext.parseFileName(windowTitle: session.windowTitle) {
+            return file
+        }
+
         if let siteLabel = session.siteLabel,
            !siteLabel.isEmpty,
            siteLabel.lowercased() != session.appName.lowercased() {
@@ -143,10 +148,27 @@ enum SiteCatalog {
         if let domain = context.domain {
             return knownSites[normalizeDomain(domain)]?.label ?? domain
         }
+        if EditorContext.isEditor(bundleId: session.bundleId),
+           let project = EditorContext.parseProject(bundleId: session.bundleId, windowTitle: session.windowTitle) {
+            return project
+        }
         return session.appName
     }
 
     static func displaySubtitle(for session: Session) -> String? {
+        if EditorContext.isEditor(bundleId: session.bundleId) {
+            if let project = EditorContext.parseProject(bundleId: session.bundleId, windowTitle: session.windowTitle) {
+                let title = displayTitle(for: session)
+                if title.lowercased() != project.lowercased() {
+                    return project
+                }
+            }
+            if displayTitle(for: session).lowercased() != session.appName.lowercased() {
+                return session.appName
+            }
+            return nil
+        }
+
         let context = parse(windowTitle: session.windowTitle)
         let title = displayTitle(for: session)
 

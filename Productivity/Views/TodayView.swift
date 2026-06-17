@@ -13,7 +13,7 @@ struct CategoryColors {
 
 struct TodayView: View {
     @State private var totals: [String: TimeInterval] = [:]
-    @State private var score: Int = 0
+    @State private var score: Int?
 
     private var trackedSeconds: TimeInterval {
         totals.values.reduce(0, +)
@@ -31,10 +31,11 @@ struct TodayView: View {
                 DashboardEmptyState(
                     symbol: "chart.line.uptrend.xyaxis",
                     title: "Nothing tracked yet",
-                    message: "Switch between apps and Flowlog will start building your focus score. Your menu bar icon updates as you work."
+                    message: "Switch between apps and Flowlog will start building your focus score here."
                 )
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .dashboardSurface()
         .onAppear(perform: reload)
         .onReceive(NotificationCenter.default.publisher(for: .productivityDataDidChange)) { _ in reload() }
@@ -46,12 +47,21 @@ struct TodayView: View {
                 DashboardDetailHeader("Today", subtitle: "How focused you've been")
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("\(score)%")
-                        .font(.system(size: 52, weight: .semibold, design: .rounded))
-                        .monospacedDigit()
-                    Text("productive")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    if let score {
+                        Text("\(score)%")
+                            .font(.system(size: 52, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                        Text("productive")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("—")
+                            .font(.system(size: 52, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.tertiary)
+                        Text("Score updates after 5 min of tracking")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 categoryBar
@@ -106,11 +116,7 @@ struct TodayView: View {
 
     private func reload() {
         totals = (try? DatabaseManager.shared.categoryTotalsToday()) ?? [:]
-        let productive = totals[ActivityCategory.productive.rawValue] ?? 0
-        let neutral = totals[ActivityCategory.neutral.rawValue] ?? 0
-        let distracting = totals[ActivityCategory.distracting.rawValue] ?? 0
-        let total = productive + neutral + distracting
-        score = total > 0 ? Int((productive / total) * 100) : 0
+        score = FocusScore.percent(from: totals)
     }
 
     private func format(_ seconds: TimeInterval) -> String {

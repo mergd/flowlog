@@ -19,11 +19,15 @@ final class TrackingCoordinator: ObservableObject {
     private let screenshotInterval: TimeInterval = 180
 
     @Published var isTracking = false
-    @Published var menuBarScorePercent: Int?
+    @Published private(set) var menuBarSession: MenuBarSessionInfo?
 
     func start() {
         guard !isTracking else { return }
-        try? DatabaseManager.shared.setup()
+        do {
+            try DatabaseManager.shared.setup()
+        } catch {
+            FlowlogLog.tracking("Database setup failed: \(error.localizedDescription)")
+        }
         RulesEngine.shared.reloadCache()
         Task { await Classifier.shared.refreshAppleAvailability() }
 
@@ -31,7 +35,10 @@ final class TrackingCoordinator: ObservableObject {
             Task { await self?.handleAppSwitch(app) }
         }
         workspace.onSleep = { [weak self] in
-            Task { try? await self?.recorder.closeCurrentSession() }
+            Task {
+                guard let self else { return }
+                await self.track("close session on sleep") { try await self.recorder.closeCurrentSession() }
+            }
         }
         workspace.start()
 
@@ -54,7 +61,7 @@ final class TrackingCoordinator: ObservableObject {
         ScreenshotStore.shared.purgeOlderThan()
         NudgeEngine.shared.start()
         isTracking = true
-        refreshMenuBarScore()
+        refreshMenuBarSession()
     }
 
     func stop() {
@@ -64,7 +71,9 @@ final class TrackingCoordinator: ObservableObject {
         purgeTimer?.invalidate()
         workLogTimer?.invalidate()
         NudgeEngine.shared.stop()
-        Task { try? await recorder.closeCurrentSession() }
+        Task {
+            await track("close session on stop") { try await recorder.closeCurrentSession() }
+        }
         isTracking = false
     }
 
@@ -78,6 +87,7 @@ final class TrackingCoordinator: ObservableObject {
         currentApp = app
         currentTitle = WindowTitleReader.focusedWindowTitle(for: app)
         await openSession(for: app, title: currentTitle)
+        refreshMenuBarSession()
     }
 
     private func poll() async {
@@ -85,10 +95,11 @@ final class TrackingCoordinator: ObservableObject {
         let bundleId = app.bundleIdentifier ?? ""
 
         if IdleMonitor.isIdle {
-            try? await recorder.setIdlePaused(true)
+            await track("pause for idle") { try await recorder.setIdlePaused(true) }
+            refreshMenuBarSession()
             return
         }
-        try? await recorder.setIdlePaused(false)
+        await track("resume from idle") { try await recorder.setIdlePaused(false) }
 
         if app != currentApp {
             await handleAppSwitch(app)
@@ -97,9 +108,8 @@ final class TrackingCoordinator: ObservableObject {
 
         let title = WindowTitleReader.focusedWindowTitle(for: app)
         guard title != currentTitle else {
-            try? await recorder.tickDuration()
-            refreshMenuBarScore()
-            NotificationCenter.default.post(name: .productivityDataDidChange, object: nil)
+            await track("tick duration") { try await recorder.tickDuration() }
+            refreshMenuBarSession()
             return
         }
 
@@ -114,23 +124,27 @@ final class TrackingCoordinator: ObservableObject {
             } else {
                 currentTitle = title
                 let siteLabel = newContext.siteLabel ?? oldContext.siteLabel
-                try? await recorder.updateCurrentSessionContext(
-                    windowTitle: title,
-                    siteLabel: siteLabel
-                )
+                await track("update session context") {
+                    try await recorder.updateCurrentSessionContext(
+                        windowTitle: title,
+                        siteLabel: siteLabel
+                    )
+                }
                 await classifyCurrentSession(app: app, title: title)
             }
         } else {
             currentTitle = title
             if await recorder.hasActiveSession(for: bundleId) {
-                try? await recorder.updateCurrentSessionContext(windowTitle: title, siteLabel: nil)
+                await track("update session title") {
+                    try await recorder.updateCurrentSessionContext(windowTitle: title, siteLabel: nil)
+                }
             } else {
                 await openSession(for: app, title: title)
             }
         }
 
-        try? await recorder.tickDuration()
-        refreshMenuBarScore()
+        await track("tick duration") { try await recorder.tickDuration() }
+        refreshMenuBarSession()
         NotificationCenter.default.post(name: .productivityDataDidChange, object: nil)
     }
 
@@ -165,7 +179,13 @@ final class TrackingCoordinator: ObservableObject {
         ) ?? raw
 
         guard let jpeg = ScreenshotPreprocessor.jpegData(from: redacted) else { return }
-        guard let screenshotId = try? ScreenshotStore.shared.save(jpegData: jpeg) else { return }
+        let screenshotId: String
+        do {
+            screenshotId = try ScreenshotStore.shared.save(jpegData: jpeg)
+        } catch {
+            FlowlogLog.tracking("Screenshot save failed: \(error.localizedDescription)")
+            return
+        }
         lastScreenshotDate = Date()
 
         let request = ClassificationRequest(
@@ -175,18 +195,20 @@ final class TrackingCoordinator: ObservableObject {
             imageData: jpeg
         )
         let result = await Classifier.shared.classify(request, force: reason == .tabChange)
-        try? await recorder.updateCurrentSession(
-            category: result.category,
-            source: result.source,
-            siteLabel: result.siteLabel,
-            screenshotId: screenshotId
-        )
+        await track("update classified session") {
+            try await recorder.updateCurrentSession(
+                category: result.category,
+                source: result.source,
+                siteLabel: result.siteLabel,
+                screenshotId: screenshotId
+            )
+        }
     }
 
     private func openSession(for app: NSRunningApplication, title: String?, context: ParsedBrowserContext? = nil) async {
         guard let bundleId = app.bundleIdentifier else { return }
         guard AppCatalog.shouldTrack(bundleId: bundleId) else {
-            try? await recorder.closeCurrentSession()
+            await track("close untracked session") { try await recorder.closeCurrentSession() }
             return
         }
 
@@ -196,13 +218,15 @@ final class TrackingCoordinator: ObservableObject {
 
         if isBrowser, !SiteCatalog.shouldTrack(domain: browserContext.domain, pageTitle: browserContext.pageTitle, windowTitle: title) {
             if await recorder.hasActiveSession(for: bundleId) {
-                try? await recorder.updateCurrentSessionContext(
-                    windowTitle: title,
-                    siteLabel: browserContext.siteLabel ?? lastBrowserContext.siteLabel
-                )
+                await track("update browser context") {
+                    try await recorder.updateCurrentSessionContext(
+                        windowTitle: title,
+                        siteLabel: browserContext.siteLabel ?? lastBrowserContext.siteLabel
+                    )
+                }
                 return
             }
-            try? await recorder.closeCurrentSession()
+            await track("close untracked browser session") { try await recorder.closeCurrentSession() }
             return
         }
 
@@ -217,15 +241,17 @@ final class TrackingCoordinator: ObservableObject {
             ? SiteCatalog.sessionIdentity(bundleId: bundleId, context: browserContext)
             : bundleId
 
-        try? await recorder.openSession(
-            bundleId: bundleId,
-            appName: appName,
-            windowTitle: title,
-            category: match?.category ?? .uncategorized,
-            categorySource: match?.source,
-            siteLabel: siteLabel,
-            sessionIdentity: sessionIdentity
-        )
+        await track("open session") {
+            try await recorder.openSession(
+                bundleId: bundleId,
+                appName: appName,
+                windowTitle: title,
+                category: match?.category ?? .uncategorized,
+                categorySource: match?.source,
+                siteLabel: siteLabel,
+                sessionIdentity: sessionIdentity
+            )
+        }
 
         if match == nil, AppSettings.shared.aiClassificationEnabled {
             await classifyCurrentSession(app: app, title: title, force: isBrowser)
@@ -248,11 +274,13 @@ final class TrackingCoordinator: ObservableObject {
             imageData: nil
         )
         let result = await Classifier.shared.classify(request, force: force)
-        try? await recorder.updateCurrentSession(
-            category: result.category,
-            source: result.source,
-            siteLabel: result.siteLabel
-        )
+        await track("update session category") {
+            try await recorder.updateCurrentSession(
+                category: result.category,
+                source: result.source,
+                siteLabel: result.siteLabel
+            )
+        }
     }
 
     private func resolvedBrowserContext(title: String?, bundleId: String) -> ParsedBrowserContext {
@@ -289,22 +317,68 @@ final class TrackingCoordinator: ObservableObject {
         guard hour >= start, hour < end else { return }
         let periodEnd = Date()
         let periodStart = periodEnd.addingTimeInterval(-3600)
-        _ = try? await WorkLogGenerator.shared.generate(for: periodStart, periodEnd: periodEnd)
+        await track("generate work log") {
+            _ = try await WorkLogGenerator.shared.generate(for: periodStart, periodEnd: periodEnd)
+        }
     }
 
-    func refreshMenuBarScore() {
-        guard let totals = try? DatabaseManager.shared.categoryTotalsToday() else {
-            menuBarScorePercent = nil
-            return
+    func refreshMenuBarSession() {
+        Task {
+            let isIdle = IdleMonitor.isIdle
+
+            if isIdle {
+                menuBarSession = frontmostSessionInfo(category: nil, startedAt: nil, isIdle: true)
+                return
+            }
+
+            do {
+                if let snapshot = try await recorder.currentSnapshot() {
+                    menuBarSession = MenuBarSessionInfo(
+                        bundleId: snapshot.bundleId,
+                        appName: snapshot.appName,
+                        siteLabel: snapshot.siteLabel,
+                        windowTitle: snapshot.windowTitle,
+                        category: snapshot.category,
+                        startedAt: snapshot.startedAt,
+                        isIdle: false
+                    )
+                    return
+                }
+            } catch {
+                FlowlogLog.tracking("Menu bar snapshot failed: \(error.localizedDescription)")
+            }
+
+            menuBarSession = frontmostSessionInfo(category: nil, startedAt: nil, isIdle: false)
         }
-        let productive = totals[ActivityCategory.productive.rawValue] ?? 0
-        let neutral = totals[ActivityCategory.neutral.rawValue] ?? 0
-        let distracting = totals[ActivityCategory.distracting.rawValue] ?? 0
-        let total = productive + neutral + distracting
-        guard total > 0 else {
-            menuBarScorePercent = nil
-            return
+    }
+
+    private func track(_ label: String, operation: () async throws -> Void) async {
+        do {
+            try await operation()
+        } catch {
+            FlowlogLog.tracking("\(label): \(error.localizedDescription)")
         }
-        menuBarScorePercent = Int((productive / total) * 100)
+    }
+
+    private func frontmostSessionInfo(
+        category: ActivityCategory?,
+        startedAt: Date?,
+        isIdle: Bool
+    ) -> MenuBarSessionInfo? {
+        let app = currentApp ?? WorkspaceMonitor.frontmostApplication
+        guard let app, let bundleId = app.bundleIdentifier else { return nil }
+        let appName = AppCatalog.friendlyName(
+            bundleId: bundleId,
+            fallback: app.localizedName ?? bundleId
+        )
+        return MenuBarSessionInfo(
+            bundleId: bundleId,
+            appName: appName,
+            siteLabel: nil,
+            windowTitle: currentTitle,
+            category: category,
+            startedAt: startedAt,
+            isIdle: isIdle
+        )
     }
 }

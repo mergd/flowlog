@@ -13,7 +13,11 @@ enum OCRPreprocessor {
             }
             request.recognitionLevel = .fast
             let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
-            try? handler.perform([request])
+            do {
+                try handler.perform([request])
+            } catch {
+                continuation.resume(returning: nil)
+            }
         }
     }
 

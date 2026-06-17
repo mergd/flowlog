@@ -27,18 +27,18 @@ enum WindowTitleReader {
         let appElement = AXUIElementCreateApplication(app.processIdentifier)
         var windowRef: CFTypeRef?
         let result = AXUIElementCopyAttributeValue(appElement, kAXFocusedWindowAttribute as CFString, &windowRef)
-        guard result == .success, let window = windowRef else { return nil }
-        return stringAttribute(kAXTitleAttribute as CFString, on: window as! AXUIElement)
+        guard result == .success, let window = windowRef, let element = axUIElement(from: window) else { return nil }
+        return stringAttribute(kAXTitleAttribute as CFString, on: element)
     }
 
     static func focusedWindowFrame(for app: NSRunningApplication) -> CGRect? {
         let appElement = AXUIElementCreateApplication(app.processIdentifier)
         var windowRef: CFTypeRef?
         guard AXUIElementCopyAttributeValue(appElement, kAXFocusedWindowAttribute as CFString, &windowRef) == .success,
-              let window = windowRef else { return nil }
-        let element = window as! AXUIElement
-
-        guard let position = positionValue(element), let size = sizeValue(element) else { return nil }
+              let window = windowRef,
+              let element = axUIElement(from: window),
+              let position = positionValue(element),
+              let size = sizeValue(element) else { return nil }
         return CGRect(origin: position, size: size)
     }
 
@@ -71,6 +71,16 @@ enum WindowTitleReader {
         return result
     }
 
+    private static func axUIElement(from ref: CFTypeRef) -> AXUIElement? {
+        guard CFGetTypeID(ref) == AXUIElementGetTypeID() else { return nil }
+        return (ref as! AXUIElement)
+    }
+
+    private static func axValue(from ref: CFTypeRef) -> AXValue? {
+        guard CFGetTypeID(ref) == AXValueGetTypeID() else { return nil }
+        return (ref as! AXValue)
+    }
+
     private static func stringAttribute(_ attr: CFString, on element: AXUIElement) -> String? {
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, attr, &value) == .success,
@@ -81,18 +91,18 @@ enum WindowTitleReader {
     private static func positionValue(_ element: AXUIElement) -> CGPoint? {
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &value) == .success,
-              let axValue = value else { return nil }
+              let axValue = value.flatMap(axValue(from:)) else { return nil }
         var point = CGPoint.zero
-        guard AXValueGetValue(axValue as! AXValue, .cgPoint, &point) else { return nil }
+        guard AXValueGetValue(axValue, .cgPoint, &point) else { return nil }
         return point
     }
 
     private static func sizeValue(_ element: AXUIElement) -> CGSize? {
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &value) == .success,
-              let axValue = value else { return nil }
+              let axValue = value.flatMap(axValue(from:)) else { return nil }
         var size = CGSize.zero
-        guard AXValueGetValue(axValue as! AXValue, .cgSize, &size) else { return nil }
+        guard AXValueGetValue(axValue, .cgSize, &size) else { return nil }
         return size
     }
 }

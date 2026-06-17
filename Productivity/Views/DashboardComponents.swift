@@ -23,7 +23,7 @@ extension View {
             minWidth: DashboardTheme.minWidth,
             maxWidth: .infinity,
             minHeight: DashboardTheme.minHeight,
-            maxHeight: DashboardTheme.defaultHeight
+            maxHeight: .infinity
         )
     }
 }

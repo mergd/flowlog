@@ -42,6 +42,7 @@ struct WorkLogView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .dashboardSurface()
         .overlay {
             if isGenerating && logs.isEmpty {

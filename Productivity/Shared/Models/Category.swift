@@ -32,3 +32,14 @@ enum ClassificationSource: String, Codable, Sendable {
     case openRouter
     case manual
 }
+
+enum FocusScore {
+    static let minimumTrackedSeconds: TimeInterval = 5 * 60
+
+    static func percent(from totals: [String: TimeInterval]) -> Int? {
+        let total = totals.values.reduce(0, +)
+        guard total >= minimumTrackedSeconds else { return nil }
+        let productive = totals[ActivityCategory.productive.rawValue] ?? 0
+        return Int((productive / total) * 100)
+    }
+}

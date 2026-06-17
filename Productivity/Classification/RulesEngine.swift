@@ -4,8 +4,14 @@ import GRDB
 final class RulesEngine: @unchecked Sendable {
     static let shared = RulesEngine()
 
-    private var cache: [String: ClassificationResult] = [:]
-    private var aiCache: [String: ClassificationResult] = [:]
+    private var exactRules: [String: ClassificationResult] = [:]
+    private var windowTitlePatterns: [(pattern: String, result: ClassificationResult)] = []
+    private var domainPatterns: [(pattern: String, result: ClassificationResult)] = []
+
+    private var aiWindowTitles: [String: ClassificationResult] = [:]
+    private var aiSiteLabels: [String: ClassificationResult] = [:]
+    private var aiDomainPatterns: [(pattern: String, result: ClassificationResult)] = []
+
     private let lock = NSLock()
 
     private init() {}
@@ -13,17 +19,29 @@ final class RulesEngine: @unchecked Sendable {
     func reloadCache() {
         lock.lock()
         defer { lock.unlock() }
-        cache.removeAll()
+
+        exactRules.removeAll()
+        windowTitlePatterns.removeAll()
+        domainPatterns.removeAll()
+
         guard let rules = try? DatabaseManager.shared.allRules() else { return }
         for rule in rules {
-            let key = "\(rule.patternType):\(rule.pattern.lowercased())"
-            cache[key] = ClassificationResult(
+            let result = ClassificationResult(
                 category: rule.activityCategory,
                 siteLabel: rule.siteLabel,
                 confidence: 1.0,
                 reason: "User rule",
                 source: .rule
             )
+            let pattern = rule.pattern.lowercased()
+            switch rule.patternTypeEnum {
+            case .windowTitle:
+                windowTitlePatterns.append((pattern: pattern, result: result))
+            case .domain:
+                domainPatterns.append((pattern: pattern, result: result))
+            case .bundleId, .siteLabel, .none:
+                exactRules["\(rule.patternType):\(pattern)"] = result
+            }
         }
     }
 
@@ -32,24 +50,24 @@ final class RulesEngine: @unchecked Sendable {
         defer { lock.unlock() }
 
         if let title = windowTitle?.lowercased(), !title.isEmpty,
-           let hit = aiCache["windowTitle:\(title)"] {
+           let hit = aiWindowTitles[title] {
             return hit
         }
-        if let siteLabel, let hit = cache["siteLabel:\(siteLabel.lowercased())"] ?? aiCache["siteLabel:\(siteLabel.lowercased())"] { return hit }
-        if let hit = cache["bundleId:\(bundleId.lowercased())"] { return hit }
+        if let siteLabel,
+           let hit = exactRules["siteLabel:\(siteLabel.lowercased())"] ?? aiSiteLabels[siteLabel.lowercased()] {
+            return hit
+        }
+        if let hit = exactRules["bundleId:\(bundleId.lowercased())"] { return hit }
 
         if let title = windowTitle?.lowercased() {
-            for (key, result) in cache where key.hasPrefix("windowTitle:") {
-                let pattern = String(key.dropFirst("windowTitle:".count))
-                if title.contains(pattern) { return result }
+            for entry in windowTitlePatterns where title.contains(entry.pattern) {
+                return entry.result
             }
-            for (key, result) in cache where key.hasPrefix("domain:") {
-                let domain = String(key.dropFirst("domain:".count))
-                if title.contains(domain) { return result }
+            for entry in domainPatterns where title.contains(entry.pattern) {
+                return entry.result
             }
-            for (key, result) in aiCache where key.hasPrefix("domain:") {
-                let domain = String(key.dropFirst("domain:".count))
-                if title.contains(domain) { return result }
+            for entry in aiDomainPatterns where title.contains(entry.pattern) {
+                return entry.result
             }
         }
         return nil
@@ -86,13 +104,18 @@ final class RulesEngine: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         if let title = windowTitle?.lowercased(), !title.isEmpty {
-            aiCache["windowTitle:\(title)"] = result
+            aiWindowTitles[title] = result
         }
         if let siteLabel {
-            aiCache["siteLabel:\(siteLabel.lowercased())"] = result
+            aiSiteLabels[siteLabel.lowercased()] = result
         }
         if let domain {
-            aiCache["domain:\(domain.lowercased())"] = result
+            let normalized = domain.lowercased()
+            if let index = aiDomainPatterns.firstIndex(where: { $0.pattern == normalized }) {
+                aiDomainPatterns[index] = (pattern: normalized, result: result)
+            } else {
+                aiDomainPatterns.append((pattern: normalized, result: result))
+            }
         }
     }
 

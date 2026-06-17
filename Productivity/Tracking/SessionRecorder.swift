@@ -109,8 +109,9 @@ actor SessionRecorder {
         guard let id = currentSessionId else { return }
         try await DatabaseManager.shared.queue.write { db in
             if var session = try Session.fetchOne(db, key: id) {
-                session.end = Date()
-                session.duration = session.end!.timeIntervalSince(session.start)
+                let end = Date()
+                session.end = end
+                session.duration = end.timeIntervalSince(session.start)
                 if markIdleExcluded || !AppCatalog.shouldTrack(bundleId: session.bundleId) {
                     session.idleExcluded = true
                 }
@@ -127,6 +128,21 @@ actor SessionRecorder {
     }
 
     var activeSessionId: Int64? { currentSessionId }
+
+    func currentSnapshot() async throws -> CurrentSessionSnapshot? {
+        guard let id = currentSessionId else { return nil }
+        return try await DatabaseManager.shared.queue.read { db in
+            guard let session = try Session.fetchOne(db, key: id) else { return nil }
+            return CurrentSessionSnapshot(
+                bundleId: session.bundleId,
+                appName: session.appName,
+                siteLabel: session.siteLabel,
+                windowTitle: session.windowTitle,
+                category: session.activityCategory,
+                startedAt: session.start
+            )
+        }
+    }
 
     private func sessionKey(bundleId: String, windowTitle: String?) -> String {
         "\(bundleId)|\(windowTitle ?? "")"

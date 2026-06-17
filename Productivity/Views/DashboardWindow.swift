@@ -14,13 +14,15 @@ struct DashboardWindow: View {
             .navigationSplitViewColumnWidth(min: 160, ideal: 168, max: 220)
         } detail: {
             detail
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .navigationSplitViewStyle(.balanced)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .toolbar(removing: .title)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    appState.coordinator.refreshMenuBarScore()
+                    appState.coordinator.refreshMenuBarSession()
                     NotificationCenter.default.post(name: .productivityDataDidChange, object: nil)
                 } label: {
                     Image(systemName: "arrow.clockwise")
@@ -40,6 +42,7 @@ struct DashboardWindow: View {
         Group {
             switch appState.selectedTab {
             case .today: TodayView()
+            case .calendar: CalendarView()
             case .workLog: WorkLogView()
             case .timeline: TimelineView()
             case .apps: AppsView()
@@ -47,7 +50,6 @@ struct DashboardWindow: View {
             case .settings: SettingsView()
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 

@@ -52,6 +52,7 @@ struct AppsView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .dashboardSurface()
         .onAppear(perform: reload)
         .onReceive(NotificationCenter.default.publisher(for: .productivityDataDidChange)) { _ in reload() }

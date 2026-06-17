@@ -76,6 +76,7 @@ struct SettingsView: View {
         .scrollContentBackground(.hidden)
         .dashboardSurface()
         .frame(minWidth: 420)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .onAppear(perform: refreshAppleStatus)
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             refreshAppleStatus()
@@ -140,18 +141,14 @@ struct SettingsView: View {
     }
 
     private func openAccessibilitySettings() {
-        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+        SystemSettings.open(.accessibility)
     }
 
     private func openScreenRecordingSettings() {
-        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
+        SystemSettings.open(.screenCapture)
     }
 
     private func openAppleIntelligenceSettings() {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.AppleIntelligence-Settings.extension") {
-            NSWorkspace.shared.open(url)
-        } else {
-            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:")!)
-        }
+        SystemSettings.open(.appleIntelligence)
     }
 }

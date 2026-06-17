@@ -34,7 +34,7 @@ struct ProductivityApp: App {
         MenuBarExtra {
             MenuBarMenu(appState: appState)
         } label: {
-            MenuBarLabel(scorePercent: appState.coordinator.menuBarScorePercent)
+            MenuBarLabel()
         }
         .menuBarExtraStyle(.menu)
 
@@ -59,33 +59,35 @@ struct ProductivityApp: App {
 }
 
 private struct MenuBarLabel: View {
-    let scorePercent: Int?
-
     var body: some View {
-        HStack(spacing: 3) {
-            Image("MenuBarIcon")
-                .renderingMode(.template)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 15, height: 15)
-
-            if let scorePercent {
-                Text("\(scorePercent)%")
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .monospacedDigit()
-            }
-        }
-        .fixedSize()
-        .accessibilityLabel(scorePercent.map { "Flowlog, \($0) percent focused" } ?? "Flowlog")
+        Image("MenuBarIcon")
+            .renderingMode(.template)
+            .resizable()
+            .scaledToFit()
+            .frame(width: 14, height: 14)
+            .accessibilityLabel("Flowlog")
     }
 }
 
 private struct MenuBarMenu: View {
     @Bindable var appState: AppState
+    @ObservedObject private var coordinator = TrackingCoordinator.shared
     @Environment(\.openWindow) private var openWindow
+    @State private var now = Date()
 
     var body: some View {
         Group {
+            if let session = coordinator.menuBarSession {
+                MenuBarSessionHeader(info: session, now: now)
+                    .disabled(true)
+                Divider()
+            }
+
+            MenuBarTodaySection()
+                .disabled(true)
+                .padding(.horizontal, 12)
+            Divider()
+
             if appState.showOnboarding {
                 Button("Continue Setup") {
                     WindowPresenter.openOnboarding()
@@ -104,6 +106,12 @@ private struct MenuBarMenu: View {
             .keyboardShortcut("q", modifiers: [.command])
         }
         .background(WindowRegistration())
+        .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { date in
+            now = date
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .productivityDataDidChange)) { _ in
+            coordinator.refreshMenuBarSession()
+        }
         .onChange(of: appState.showDashboard) { _, show in
             guard show else { return }
             if appState.showOnboarding {

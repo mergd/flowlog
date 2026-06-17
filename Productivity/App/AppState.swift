@@ -45,13 +45,14 @@ final class AppState {
 }
 
 enum DashboardTab: String, CaseIterable, Identifiable {
-    case today, workLog, timeline, apps, rules, settings
+    case today, calendar, workLog, timeline, apps, rules, settings
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .today: "Today"
+        case .calendar: "Calendar"
         case .workLog: "Work Log"
         case .timeline: "Timeline"
         case .apps: "Apps"
@@ -63,6 +64,7 @@ enum DashboardTab: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .today: "chart.pie.fill"
+        case .calendar: "calendar"
         case .workLog: "text.book.closed.fill"
         case .timeline: "clock.fill"
         case .apps: "square.grid.2x2.fill"

@@ -5,6 +5,12 @@ struct TimelineView: View {
     @State private var sessions: [Session] = []
     @State private var selectedScreenshot: String?
 
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter
+    }()
+
     var body: some View {
         Group {
             if sessions.isEmpty {
@@ -24,6 +30,7 @@ struct TimelineView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .dashboardSurface()
         .sheet(item: Binding(
             get: { selectedScreenshot.map { ScreenshotItem(id: $0) } },
@@ -100,10 +107,8 @@ struct TimelineView: View {
     }
 
     private func timelineTimeRange(_ session: Session) -> String {
-        let f = DateFormatter()
-        f.timeStyle = .short
         let end = session.end ?? Date()
-        return "\(f.string(from: session.start)) to \(f.string(from: end))"
+        return "\(Self.timeFormatter.string(from: session.start)) to \(Self.timeFormatter.string(from: end))"
     }
 
     private func reload() {

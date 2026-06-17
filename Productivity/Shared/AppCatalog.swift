@@ -130,11 +130,6 @@ enum AppCatalog {
 
     static func knownCategory(for bundleId: String) -> ActivityCategory? {
         if let exact = knownApps[bundleId]?.category { return exact }
-        for (prefix, entry) in knownApps where bundleId.hasPrefix(prefix + ".") || bundleId.hasPrefix(prefix) {
-            if bundleId == prefix || bundleId.hasPrefix(prefix + ".") {
-                return entry.category
-            }
-        }
         if bundleId.hasPrefix("com.apple.iWork.") { return .productive }
         if bundleId.hasPrefix("com.jetbrains.") { return .productive }
         if bundleId.hasPrefix("com.adobe.") { return .productive }
