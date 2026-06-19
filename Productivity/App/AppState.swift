@@ -7,7 +7,7 @@ final class AppState {
 
     var showDashboard = false
     var showOnboarding = !AppSettings.shared.hasCompletedOnboarding
-    var selectedTab: DashboardTab = .today
+    var selectedTab: DashboardTab = .day
 
     let coordinator = TrackingCoordinator.shared
 
@@ -45,29 +45,23 @@ final class AppState {
 }
 
 enum DashboardTab: String, CaseIterable, Identifiable {
-    case today, calendar, timeline, apps, rules, settings
+    case day, apps, rules
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .today: "Today"
-        case .calendar: "Calendar"
-        case .timeline: "Timeline"
+        case .day: "Activity"
         case .apps: "Apps"
         case .rules: "Rules"
-        case .settings: "Settings"
         }
     }
 
     var icon: String {
         switch self {
-        case .today: "chart.pie.fill"
-        case .calendar: "calendar"
-        case .timeline: "clock.fill"
+        case .day: "chart.bar.xaxis"
         case .apps: "square.grid.2x2.fill"
         case .rules: "list.bullet.rectangle"
-        case .settings: "gearshape.fill"
         }
     }
 }

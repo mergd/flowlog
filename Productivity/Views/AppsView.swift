@@ -39,7 +39,7 @@ struct AppsView: View {
                                 if group.isBrowser {
                                     ForEach(visibleSites(for: group)) { site in
                                         siteRow(site)
-                                            .listRowInsets(EdgeInsets(top: 2, leading: 52, bottom: 2, trailing: 16))
+                                            .listRowInsets(EdgeInsets(top: 2, leading: DashboardTheme.hInset + 32, bottom: 2, trailing: DashboardTheme.hInset))
                                     }
                                 }
                             }
@@ -63,20 +63,35 @@ struct AppsView: View {
         return HStack(spacing: 10) {
             AppIconView(bundleId: group.bundleId, size: 28)
 
-            Text(group.appName)
-                .font(.subheadline.weight(.medium))
-                .lineLimit(1)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(group.appName)
+                    .font(.subheadline.weight(.medium))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                if AppSettings.shared.developerMode {
+                    Text(group.bundleId)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .layoutPriority(1)
 
             Spacer(minLength: 8)
 
             DurationLabel(seconds: group.duration)
+                .fixedSize(horizontal: true, vertical: false)
 
-            if category != .uncategorized {
-                CategoryPill(category: category)
-            }
+            CategoryIcon(category: category, size: 11)
+                .opacity(category == .uncategorized ? 0.5 : 1)
+                .frame(width: 14)
+                .accessibilityLabel(category.displayName)
         }
         .padding(.vertical, 4)
-        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: group.isBrowser ? 2 : 4, trailing: 16))
+        .listRowInsets(EdgeInsets(top: 4, leading: DashboardTheme.hInset, bottom: group.isBrowser ? 2 : 4, trailing: DashboardTheme.hInset))
     }
 
     private func siteRow(_ site: SiteUsageRow) -> some View {
@@ -89,21 +104,27 @@ struct AppsView: View {
                 Text(site.siteLabel)
                     .font(.subheadline)
                     .lineLimit(1)
+                    .truncationMode(.tail)
                 if let domain = site.domain, domain != site.siteLabel.lowercased() {
                     Text(domain)
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
+                        .truncationMode(.middle)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .layoutPriority(1)
 
             Spacer(minLength: 8)
 
             DurationLabel(seconds: site.duration)
+                .fixedSize(horizontal: true, vertical: false)
 
-            if category != .uncategorized {
-                CategoryPill(category: category)
-            }
+            CategoryIcon(category: category, size: 11)
+                .opacity(category == .uncategorized ? 0.5 : 1)
+                .frame(width: 14)
+                .accessibilityLabel(category.displayName)
         }
         .padding(.vertical, 2)
     }

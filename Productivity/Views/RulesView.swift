@@ -6,53 +6,64 @@ struct RulesView: View {
     @State private var newType = Rule.PatternType.domain
     @State private var newCategory = ActivityCategory.productive
     @State private var isAdding = false
+    @State private var saveError: String?
+    @State private var hasInvalidRules = false
     @FocusState private var patternFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
-            if rules.isEmpty, !isAdding {
-                DashboardEmptyState(
-                    symbol: "list.bullet.rectangle",
-                    title: "No rules yet",
-                    message: "Rules teach Flowlog how to classify apps and sites. Add one when you correct a session, or create one here."
-                )
-                .overlay(alignment: .bottomTrailing) {
-                    addButton
-                        .padding(24)
-                }
-            } else {
-                List {
-                    if isAdding {
-                        addRuleSection
-                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                            .listRowSeparator(.hidden)
-                    }
-
-                    ForEach(rules) { rule in
-                        ruleRow(rule)
-                            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-                    }
-                    .onDelete(perform: deleteRules)
-                }
-                .dashboardPlainList()
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .dashboardSurface()
-        .safeAreaInset(edge: .top) {
             DashboardDetailHeader(
                 "Rules",
                 subtitle: rules.isEmpty ? "Classification overrides" : "\(rules.count) active"
             )
-        }
-        .safeAreaInset(edge: .bottom) {
+
+            Group {
+                if rules.isEmpty, !isAdding {
+                    DashboardEmptyState(
+                        symbol: "list.bullet.rectangle",
+                        title: "No rules yet",
+                        message: "Rules teach Flowlog how to classify apps and sites. Reclassify a session on the Day tab, or add one here."
+                    )
+                    .overlay(alignment: .bottomTrailing) {
+                        addButton
+                            .padding(24)
+                    }
+                } else {
+                    List {
+                        if isAdding {
+                            addRuleSection
+                                .listRowInsets(EdgeInsets(top: 8, leading: DashboardTheme.hInset, bottom: 8, trailing: DashboardTheme.hInset))
+                                .listRowSeparator(.hidden)
+                        }
+
+                        ForEach(rules) { rule in
+                            ruleRow(rule)
+                                .listRowInsets(EdgeInsets(top: 4, leading: DashboardTheme.hInset, bottom: 4, trailing: DashboardTheme.hInset))
+                        }
+                        .onDelete(perform: deleteRules)
+                    }
+                    .dashboardPlainList()
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
             if !rules.isEmpty || isAdding {
                 HStack {
+                    if hasInvalidRules {
+                        Button("Clean up invalid") {
+                            cleanupInvalid()
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
+                    }
+
                     Spacer()
+
                     if isAdding {
                         Button("Cancel") {
                             isAdding = false
                             newPattern = ""
+                            saveError = nil
                         }
                         .buttonStyle(.plain)
                         .foregroundStyle(.secondary)
@@ -65,13 +76,16 @@ struct RulesView: View {
                 .background(.bar)
             }
         }
-        .onAppear(perform: reload)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .dashboardSurface()
+        .dashboardAutoReload(reload)
     }
 
     private var addButton: some View {
         Button {
             withAnimation(.snappy(duration: 0.2)) {
                 isAdding = true
+                saveError = nil
                 patternFocused = true
             }
         } label: {
@@ -83,31 +97,49 @@ struct RulesView: View {
     }
 
     private var addRuleSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Picker("Match", selection: $newType) {
-                ForEach(Rule.PatternType.allCases, id: \.self) { type in
-                    Label(type.displayName, systemImage: type.icon).tag(type)
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Match type")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+                Picker("Match type", selection: $newType) {
+                    ForEach(Rule.PatternType.allCases, id: \.self) { type in
+                        Text(type.displayName).tag(type)
+                    }
                 }
+                .pickerStyle(.menu)
+                .labelsHidden()
             }
-            .pickerStyle(.segmented)
 
-            TextField(newType.placeholder, text: $newPattern)
-                .textFieldStyle(.roundedBorder)
-                .focused($patternFocused)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Pattern")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+                TextField(newType.placeholder, text: $newPattern)
+                    .textFieldStyle(.roundedBorder)
+                    .focused($patternFocused)
+            }
 
-            HStack {
+            VStack(alignment: .leading, spacing: 6) {
                 Text("Classify as")
-                    .font(.subheadline)
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
                 Picker("Category", selection: $newCategory) {
                     ForEach(ActivityCategory.allCases.filter { $0 != .uncategorized }, id: \.self) { cat in
                         Text(cat.displayName).tag(cat)
                     }
                 }
-                .labelsHidden()
+                .pickerStyle(.segmented)
+            }
 
+            if let saveError {
+                Text(saveError)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+
+            HStack {
                 Spacer()
-
                 Button("Save") { saveRule() }
                     .buttonStyle(.borderedProminent)
                     .disabled(newPattern.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -147,7 +179,9 @@ struct RulesView: View {
                     .clipShape(Capsule())
             }
 
-            CategoryPill(category: rule.activityCategory)
+            CategoryIcon(category: rule.activityCategory, size: 11)
+                .frame(width: 14)
+                .accessibilityLabel(rule.activityCategory.displayName)
         }
         .padding(.vertical, 4)
     }
@@ -176,21 +210,39 @@ struct RulesView: View {
     }
 
     private func reload() {
-        rules = DashboardData.allRules()
+        let all = DashboardData.allRules()
+        rules = all.filter(RuleValidator.isValid)
+        hasInvalidRules = all.count != rules.count
+    }
+
+    private func cleanupInvalid() {
+        _ = try? RulesEngine.shared.deleteInvalidRules()
+        reload()
     }
 
     private func saveRule() {
         let pattern = newPattern.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !pattern.isEmpty else { return }
-        try? RulesEngine.shared.addRule(
-            patternType: newType,
-            pattern: newType == .domain ? pattern.lowercased() : pattern,
-            category: newCategory,
-            siteLabel: newType == .siteLabel ? pattern : nil
-        )
-        newPattern = ""
-        isAdding = false
-        reload()
+
+        guard RuleValidator.isValid(pattern: pattern, type: newType) else {
+            saveError = "That pattern is not valid."
+            return
+        }
+
+        do {
+            try RulesEngine.shared.addRule(
+                patternType: newType,
+                pattern: pattern,
+                category: newCategory,
+                siteLabel: newType == .siteLabel ? pattern : nil
+            )
+            newPattern = ""
+            isAdding = false
+            saveError = nil
+            reload()
+        } catch {
+            saveError = error.localizedDescription
+        }
     }
 
     private func deleteRules(at offsets: IndexSet) {

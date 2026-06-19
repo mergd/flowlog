@@ -19,8 +19,10 @@ struct SettingsView: View {
                 }
 
                 SecureField("OpenRouter API key", text: Bindable(settings).openRouterAPIKey)
-                Toggle("OpenRouter only (testing)", isOn: Bindable(settings).openRouterOnly)
                 Toggle("Aggressive screenshot redaction", isOn: Bindable(settings).aggressiveRedaction)
+                if settings.developerMode {
+                    Toggle("OpenRouter only", isOn: Bindable(settings).openRouterOnly)
+                }
             }
 
             Section("Nudges") {
@@ -30,14 +32,14 @@ struct SettingsView: View {
                     }
                 Stepper("Threshold: \(settings.nudgeThresholdMinutes) min/hr", value: Bindable(settings).nudgeThresholdMinutes, in: 5...60, step: 5)
                 Stepper("Cooldown: \(settings.nudgeCooldownMinutes) min", value: Bindable(settings).nudgeCooldownMinutes, in: 10...120, step: 5)
-                Stepper("Quiet start: \(settings.quietHoursStart):00", value: Bindable(settings).quietHoursStart, in: 0...23)
-                Stepper("Quiet end: \(settings.quietHoursEnd):00", value: Bindable(settings).quietHoursEnd, in: 0...23)
+                Stepper("Quiet start: \(hourLabel(settings.quietHoursStart))", value: Bindable(settings).quietHoursStart, in: 0...23)
+                Stepper("Quiet end: \(hourLabel(settings.quietHoursEnd))", value: Bindable(settings).quietHoursEnd, in: 0...23)
             }
 
             Section("Work context") {
                 TextField("Role / context", text: Bindable(settings).workContext)
-                Stepper("Work hours start: \(settings.workHoursStart):00", value: Bindable(settings).workHoursStart, in: 0...23)
-                Stepper("Work hours end: \(settings.workHoursEnd):00", value: Bindable(settings).workHoursEnd, in: 0...23)
+                Stepper("Work hours start: \(hourLabel(settings.workHoursStart))", value: Bindable(settings).workHoursStart, in: 0...23)
+                Stepper("Work hours end: \(hourLabel(settings.workHoursEnd))", value: Bindable(settings).workHoursEnd, in: 0...23)
             }
 
             Section("Privacy") {
@@ -51,6 +53,8 @@ struct SettingsView: View {
                     .onChange(of: settings.loginItemEnabled) { _, enabled in
                         LoginItemManager.setEnabled(enabled)
                     }
+                Toggle("Show menu bar icon", isOn: Bindable(settings).showMenuBarIcon)
+                Toggle("Developer mode", isOn: Bindable(settings).developerMode)
             }
             .onAppear {
                 settings.loginItemEnabled = LoginItemManager.isRegistered
@@ -132,6 +136,19 @@ struct SettingsView: View {
         AppleClassifier.shared.refreshAvailability()
         appleStatus = AppleClassifier.shared.status
     }
+
+    /// Localized label for an hour-of-day (e.g. "9 AM" or "21:00" depending on locale).
+    private func hourLabel(_ hour: Int) -> String {
+        let components = DateComponents(hour: hour)
+        guard let date = Calendar.current.date(from: components) else { return "\(hour):00" }
+        return Self.hourFormatter.string(from: date)
+    }
+
+    private static let hourFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.setLocalizedDateFormatFromTemplate("j")
+        return f
+    }()
 
     private func permissionRow(_ name: String, granted: Bool) -> some View {
         LabeledContent(name) {
