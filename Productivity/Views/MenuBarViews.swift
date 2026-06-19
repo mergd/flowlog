@@ -28,13 +28,11 @@ struct MenuBarPanel: View {
             }
 
             if let session = coordinator.menuBarSession {
-                Divider()
                 sessionCard(session)
                     .padding(.horizontal, pad)
-                    .padding(.vertical, 4)
+                    .padding(.vertical, 8)
             }
 
-            Divider()
             footer
         }
         .frame(width: 248)
@@ -133,8 +131,8 @@ struct MenuBarPanel: View {
                 Text(session.title)
                     .font(.subheadline.weight(.medium))
                     .lineLimit(1)
-                if let subtitle = session.subtitle {
-                    Text(subtitle)
+                if let secondary = sessionSecondary(session) {
+                    Text(secondary)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -150,9 +148,15 @@ struct MenuBarPanel: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
-        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 7))
+    }
+
+    /// Secondary line for the current-session row: the app name (so a browser shows
+    /// its site *and* "Google Chrome"), falling back to the page context.
+    private func sessionSecondary(_ session: MenuBarSessionInfo) -> String? {
+        if session.appName.lowercased() != session.title.lowercased() {
+            return session.appName
+        }
+        return session.subtitle
     }
 
     @ViewBuilder

@@ -17,6 +17,10 @@ enum DashboardData {
         (try? DatabaseManager.shared.blocks(in: range)) ?? []
     }
 
+    static func pauses(in range: Range<Date>) -> [Pause] {
+        (try? DatabaseManager.shared.pauses(in: range)) ?? []
+    }
+
     static func usageBreakdownToday() -> [AppUsageGroup] {
         (try? DatabaseManager.shared.usageBreakdownToday()) ?? []
     }
@@ -35,5 +39,13 @@ enum DashboardData {
 
     static func categoryTotals(in range: Range<Date>) -> [String: TimeInterval] {
         (try? DatabaseManager.shared.categoryTotals(in: range)) ?? [:]
+    }
+
+    static func topicTotalsToday() -> [String: TimeInterval] {
+        (try? DatabaseManager.shared.topicTotalsToday()) ?? [:]
+    }
+
+    static func topicTotals(in range: Range<Date>) -> [String: TimeInterval] {
+        (try? DatabaseManager.shared.topicTotals(in: range)) ?? [:]
     }
 }

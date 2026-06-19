@@ -17,6 +17,7 @@ final class AppState {
 
         if AppSettings.shared.hasCompletedOnboarding {
             coordinator.start()
+            SummaryNotifier.shared.start()
         } else {
             showDashboard = true
         }
@@ -40,6 +41,7 @@ final class AppState {
         LoginItemManager.setEnabled(true)
         showOnboarding = false
         coordinator.start()
+        SummaryNotifier.shared.start()
         WindowPresenter.openDashboard()
     }
 }

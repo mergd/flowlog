@@ -31,6 +31,7 @@ final class NudgeEngine {
         let settings = AppSettings.shared
         guard settings.nudgesEnabled else { return }
         guard !isQuietHours() else { return }
+        if settings.nudgeOnlyDuringWorkHours, !isWorkHours() { return }
 
         let windowStart = Date().addingTimeInterval(-Double(settings.nudgeRollingWindowMinutes * 60))
         guard let distractingSeconds = try? DatabaseManager.shared.distractingDuration(since: windowStart) else { return }
@@ -58,6 +59,16 @@ final class NudgeEngine {
         let hour = Calendar.current.component(.hour, from: Date())
         let start = AppSettings.shared.quietHoursStart
         let end = AppSettings.shared.quietHoursEnd
+        if start > end {
+            return hour >= start || hour < end
+        }
+        return hour >= start && hour < end
+    }
+
+    private func isWorkHours() -> Bool {
+        let hour = Calendar.current.component(.hour, from: Date())
+        let start = AppSettings.shared.workHoursStart
+        let end = AppSettings.shared.workHoursEnd
         if start > end {
             return hour >= start || hour < end
         }

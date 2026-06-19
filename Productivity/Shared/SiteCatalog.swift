@@ -119,6 +119,75 @@ enum SiteCatalog {
         "medium.com": ("Medium", .neutral),
     ]
 
+    /// Screen Time–style topic per known site, independent of the productive
+    /// verdict in `knownSites`. Keyed by the same normalized domains.
+    private static let knownSiteTopics: [String: ActivityTopic] = [
+        "github.com": .developer,
+        "gitlab.com": .developer,
+        "bitbucket.org": .developer,
+        "stackoverflow.com": .developer,
+        "developer.apple.com": .developer,
+        "localhost": .developer,
+        "vercel.com": .developer,
+        "railway.app": .developer,
+        "supabase.com": .developer,
+        "notion.so": .productivity,
+        "notion.site": .productivity,
+        "linear.app": .productivity,
+        "figma.com": .design,
+        "docs.google.com": .productivity,
+        "drive.google.com": .productivity,
+        "sheets.google.com": .productivity,
+        "calendar.google.com": .productivity,
+        "mail.google.com": .communication,
+        "gmail.com": .communication,
+        "slack.com": .communication,
+        "app.slack.com": .communication,
+        "chatgpt.com": .ai,
+        "claude.ai": .ai,
+        "perplexity.ai": .ai,
+        "google.com": .reference,
+        "duckduckgo.com": .reference,
+        "wikipedia.org": .reference,
+        "youtube.com": .video,
+        "youtu.be": .video,
+        "reddit.com": .social,
+        "old.reddit.com": .social,
+        "twitter.com": .social,
+        "x.com": .social,
+        "instagram.com": .social,
+        "facebook.com": .social,
+        "tiktok.com": .social,
+        "netflix.com": .video,
+        "twitch.tv": .video,
+        "news.ycombinator.com": .news,
+        "linkedin.com": .social,
+        "nytimes.com": .news,
+        "washingtonpost.com": .news,
+        "theverge.com": .news,
+        "bloomberg.com": .news,
+        "wsj.com": .news,
+        "substack.com": .news,
+        "medium.com": .news,
+    ]
+
+    /// Topic for a known domain (with parent-domain fallback). Nil if unrecognized.
+    static func topic(forDomain domain: String) -> ActivityTopic? {
+        let normalized = normalizeDomain(domain)
+        if let topic = knownSiteTopics[normalized] { return topic }
+        if let parent = parentDomain(for: normalized), let topic = knownSiteTopics[parent] {
+            return topic
+        }
+        return nil
+    }
+
+    /// Topic for a known site *label* (e.g. "YouTube" → .video), used when the
+    /// live URL wasn't readable but the label still identifies the site.
+    static func topic(forLabel label: String?) -> ActivityTopic? {
+        guard let domain = inferredDomain(forLabel: label) else { return nil }
+        return topic(forDomain: domain)
+    }
+
     static func siteKey(domain: String?, siteLabel: String?) -> String {
         if let domain { return normalizeDomain(domain) }
         if let siteLabel, !siteLabel.isEmpty { return siteLabel.lowercased() }
@@ -201,11 +270,16 @@ enum SiteCatalog {
             return appName  // unknown site → the browser name, not the article
         }
 
-        if let label = context.siteLabel, !isBrowserOnlyTitle(label) {
-            return label
-        }
-        if let pageTitle = context.pageTitle {
-            return pageTitle
+        // Non-browser, non-editor apps: only use the window title when it's a
+        // meaningful context (curated set). Otherwise collapse to the app name so
+        // apps with churning titles (cmux) don't fragment into per-tab entries.
+        if AppCatalog.usesWindowTitleContext(bundleId: bundleId) {
+            if let label = context.siteLabel, !isBrowserOnlyTitle(label) {
+                return label
+            }
+            if let pageTitle = context.pageTitle {
+                return pageTitle
+            }
         }
         return appName
     }
@@ -255,7 +329,8 @@ enum SiteCatalog {
             return nil
         }
 
-        if let windowTitle,
+        if AppCatalog.usesWindowTitleContext(bundleId: bundleId),
+           let windowTitle,
            !windowTitle.isEmpty,
            windowTitle != title,
            windowTitle != appName {
@@ -363,6 +438,21 @@ enum SiteCatalog {
             return (entry.category, entry.label, .siteCatalog)
         }
         if let parent = parentDomain(for: normalized), let entry = knownSites[parent] {
+            return (entry.category, entry.label, .siteCatalog)
+        }
+        return nil
+    }
+
+    /// Catalog default for a known site *label* (e.g. "YouTube" → .distracting),
+    /// used when the live URL wasn't readable but we still recognize the site by
+    /// name. The label must exactly match a catalog entry — we never guess a
+    /// category from an arbitrary page title.
+    static func classification(forLabel label: String?) -> (category: ActivityCategory, label: String, source: ClassificationSource)? {
+        guard let trimmed = label?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
+            return nil
+        }
+        let lower = trimmed.lowercased()
+        if let entry = knownSites.values.first(where: { $0.label.lowercased() == lower }) {
             return (entry.category, entry.label, .siteCatalog)
         }
         return nil

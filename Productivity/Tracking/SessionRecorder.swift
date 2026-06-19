@@ -14,6 +14,7 @@ actor SessionRecorder {
         categorySource: ClassificationSource? = nil,
         siteLabel: String? = nil,
         screenshotId: String? = nil,
+        topic: ActivityTopic? = nil,
         sessionIdentity: String? = nil
     ) async throws {
         let key = sessionIdentity ?? sessionKey(bundleId: bundleId, windowTitle: windowTitle)
@@ -33,7 +34,8 @@ actor SessionRecorder {
             category: category.rawValue,
             categorySource: categorySource?.rawValue,
             siteLabel: SiteCatalog.sanitizedSiteLabel(siteLabel, bundleId: bundleId, appName: appName),
-            screenshotId: screenshotId
+            screenshotId: screenshotId,
+            topic: (topic ?? .uncategorized).rawValue
         )
 
         let insertedId = try await DatabaseManager.shared.queue.write { db -> Int64 in
@@ -55,8 +57,15 @@ actor SessionRecorder {
         guard let id = currentSessionId else { return }
         try await DatabaseManager.shared.queue.write { db in
             if var session = try Session.fetchOne(db, key: id) {
-                session.category = category.rawValue
-                session.categorySource = source.rawValue
+                // Never let a later abstention (AI/screenshot returning
+                // uncategorized) erase a category we already resolved — e.g. a
+                // known-site default. Abstaining is not a verdict.
+                let isAbstention = category == .uncategorized
+                let alreadyClassified = session.category != ActivityCategory.uncategorized.rawValue
+                if !(isAbstention && alreadyClassified) {
+                    session.category = category.rawValue
+                    session.categorySource = source.rawValue
+                }
                 if let cleaned = SiteCatalog.sanitizedSiteLabel(
                     siteLabel,
                     bundleId: session.bundleId,

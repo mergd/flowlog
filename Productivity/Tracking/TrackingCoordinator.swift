@@ -21,6 +21,7 @@ final class TrackingCoordinator: ObservableObject {
     @Published private(set) var menuBarSession: MenuBarSessionInfo?
     @Published private(set) var snoozedUntil: Date?
     private var snoozeTimer: Timer?
+    private var activePauseId: Int64?
 
     var isSnoozed: Bool { snoozedUntil != nil }
 
@@ -66,6 +67,10 @@ final class TrackingCoordinator: ObservableObject {
         snoozeTimer?.invalidate()
         snoozeTimer = nil
         snoozedUntil = nil
+        if let id = activePauseId {
+            try? DatabaseManager.shared.endPause(id: id, end: Date())
+            activePauseId = nil
+        }
         NudgeEngine.shared.stop()
         Task {
             await track("close session on stop") { try await recorder.closeCurrentSession() }
@@ -99,6 +104,10 @@ final class TrackingCoordinator: ObservableObject {
         NudgeEngine.shared.stop()
         Task { await track("close on snooze") { try await recorder.closeCurrentSession() } }
 
+        // Record the pause so it reads as a deliberate "paused" stretch, not untracked.
+        // Seed it with the planned end so it's bounded even if the app quits while paused.
+        activePauseId = try? DatabaseManager.shared.beginPause(start: Date(), plannedEnd: snoozedUntil)
+
         snoozeTimer?.invalidate()
         snoozeTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { [weak self] _ in
             Task { @MainActor in self?.endSnooze() }
@@ -112,6 +121,10 @@ final class TrackingCoordinator: ObservableObject {
         snoozeTimer = nil
         guard snoozedUntil != nil else { return }
         snoozedUntil = nil
+        if let id = activePauseId {
+            try? DatabaseManager.shared.endPause(id: id, end: Date())
+            activePauseId = nil
+        }
         guard isTracking else { return }
         startPolling()
         NudgeEngine.shared.start()
@@ -306,6 +319,29 @@ final class TrackingCoordinator: ObservableObject {
         )
 
         let siteLabel = deterministic?.siteLabel ?? browserContext.siteLabel ?? lastBrowserContext.siteLabel
+
+        // Known-site default. When the live URL wasn't readable, the domain is nil
+        // (so tier 3 above is skipped) yet the site label still carried forward as
+        // e.g. "YouTube". Rather than leave a recognized site Uncategorized, fall
+        // back to the catalog's default category for that label. Authoritative like
+        // any catalog hit, so it also suppresses the live-AI pass below.
+        var resolvedCategory = deterministic?.category ?? .uncategorized
+        var resolvedSource = deterministic?.source
+        if deterministic == nil,
+           let labelHit = SiteCatalog.classification(forLabel: siteLabel) {
+            resolvedCategory = labelHit.category
+            resolvedSource = labelHit.source
+        }
+        let didResolve = deterministic != nil || resolvedCategory != .uncategorized
+
+        // Topic (Screen Time genre) is orthogonal to category — resolved from the
+        // app/site identity, not the productive verdict.
+        let topic = ActivityTopic.resolve(
+            bundleId: bundleId,
+            domain: browserContext.domain ?? lastBrowserContext.domain,
+            siteLabel: siteLabel
+        )
+
         let sessionIdentity: String
         if isBrowser {
             sessionIdentity = SiteCatalog.sessionIdentity(bundleId: bundleId, context: browserContext)
@@ -320,14 +356,14 @@ final class TrackingCoordinator: ObservableObject {
                 bundleId: bundleId,
                 appName: appName,
                 windowTitle: title,
-                category: deterministic?.category ?? .uncategorized,
-                categorySource: deterministic?.source,
+                category: resolvedCategory,
+                categorySource: resolvedSource,
                 siteLabel: siteLabel,
                 sessionIdentity: sessionIdentity
             )
         }
 
-        if deterministic == nil, AppSettings.shared.aiClassificationEnabled {
+        if !didResolve, AppSettings.shared.aiClassificationEnabled {
             await classifyCurrentSession(app: app, title: title, force: isBrowser || EditorContext.isEditor(bundleId: bundleId))
         }
     }

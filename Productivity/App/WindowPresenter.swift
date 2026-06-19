@@ -133,6 +133,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // and leaves an empty slot beside the icon on the active display.
         NSApp.setActivationPolicy(.accessory)
 
+        // Pop the system Screen Recording prompt if we don't have the grant — a
+        // rebuilt binary loses it, and screenshot capture fails silently without it.
+        if !Permissions.isScreenRecordingGranted() {
+            Permissions.requestScreenRecordingAccess()
+        }
+
         if AppState.shared.showOnboarding {
             NSApp.activate(ignoringOtherApps: true)
             WindowPresenter.openOnboarding()

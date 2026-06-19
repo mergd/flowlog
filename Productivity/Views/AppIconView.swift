@@ -66,11 +66,15 @@ struct SiteIconView: View {
     var body: some View {
         ZStack {
             if let favicon {
+                // Favicons are designed for light backgrounds and usually have alpha,
+                // so put them on a white chip instead of floating on the dark row.
+                RoundedRectangle(cornerRadius: size * 0.24, style: .continuous)
+                    .fill(.white)
                 Image(nsImage: favicon)
                     .resizable()
                     .interpolation(.high)
                     .aspectRatio(contentMode: .fit)
-                    .padding(size * 0.12)
+                    .padding(size * 0.16)
             } else {
                 RoundedRectangle(cornerRadius: size * 0.24, style: .continuous)
                     .fill(tint.opacity(0.18))

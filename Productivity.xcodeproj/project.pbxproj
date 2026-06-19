@@ -48,6 +48,7 @@
 		D4E5F60718293A4B5C6D7F4 /* OnboardingWindowHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/App/OnboardingWindowHost.swift"; sourceTree = SOURCE_ROOT; };
 		D4E5F60718293A4B5C6D7F2 /* WindowChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/App/WindowChrome.swift"; sourceTree = SOURCE_ROOT; };
 		L0G1N1T3M4N4G3R5F1L3E0A /* LoginItemManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/App/LoginItemManager.swift"; sourceTree = SOURCE_ROOT; };
+		CL1T00L1N5T4LL3R5F1L3E0A /* CommandLineToolInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/App/CommandLineToolInstaller.swift"; sourceTree = SOURCE_ROOT; };
 		C1A5S51F1C4T10NTYP35F1L3 /* ClassificationTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Classification/ClassificationTypes.swift"; sourceTree = SOURCE_ROOT; };
 		EEE203EF4B1CEB2DB23F281B /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Shared/AppSettings.swift"; sourceTree = SOURCE_ROOT; };
 		A7C4T4L0G5H4R3D2F1L3E0A /* AppCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Shared/AppCatalog.swift"; sourceTree = SOURCE_ROOT; };
@@ -63,6 +64,7 @@
 		9B969BA234A7A24BB9F2CF06 /* Category.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Shared/Models/Category.swift"; sourceTree = SOURCE_ROOT; };
 		D8CF38120EF4F0C7A7AA081D /* Rule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Shared/Models/Rule.swift"; sourceTree = SOURCE_ROOT; };
 		21BB488EB66E55DD5530DD25 /* Session.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Shared/Models/Session.swift"; sourceTree = SOURCE_ROOT; };
+		4CT1V1TYT0P1C5M0D3L5F1L3 /* ActivityTopic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Shared/Models/ActivityTopic.swift"; sourceTree = SOURCE_ROOT; };
 		81051A183DA5D3C78A1E6E8E /* Database.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Storage/Database.swift"; sourceTree = SOURCE_ROOT; };
 		EFA47B269FF35060CB0AA0CF /* ScreenshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Storage/ScreenshotStore.swift"; sourceTree = SOURCE_ROOT; };
 		17FF586DF908C873F5357B88 /* BrowserDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Tracking/BrowserDetector.swift"; sourceTree = SOURCE_ROOT; };
@@ -89,8 +91,10 @@
 		S3SSR3M3MB3R5C0P3F1L /* SessionRememberScope.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Classification/SessionRememberScope.swift"; sourceTree = SOURCE_ROOT; };
 		RUL3V4L1D4T0R5F1L3E1 /* RuleValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Classification/RuleValidator.swift"; sourceTree = SOURCE_ROOT; };
 		0848FADA126523A47494DEB6 /* NudgeEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Nudges/NudgeEngine.swift"; sourceTree = SOURCE_ROOT; };
+		0848FADA126523A47494DEB7 /* SummaryNotifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Nudges/SummaryNotifier.swift"; sourceTree = SOURCE_ROOT; };
 		A1C0N1C0A55E7C4A7A1C0N1D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Productivity/Assets.xcassets"; sourceTree = SOURCE_ROOT; };
 		F10WLOG1C0NA55E7C4A7A1D /* Flowlog.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = "Productivity/Flowlog.icon"; sourceTree = SOURCE_ROOT; };
+		F10WL0G5CR1PT0R3F00000A1 /* flowlog */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "scripts/flowlog"; sourceTree = SOURCE_ROOT; };
 		F5BF48AA40CAD7891EB709FC /* Flowlog.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Flowlog.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B6AFFE446728460BFF954A15 /* AppleClassifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 900231A4F4D042BBB3A90457 /* AppleClassifier.swift */; };
 		3766FDFF265D04825514DE0D /* Classifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = F61399D880475FEF78EB0CA9 /* Classifier.swift */; };
@@ -104,6 +108,7 @@
 		D4E5F60718293A4B5C6D7F5 /* OnboardingWindowHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F60718293A4B5C6D7F4 /* OnboardingWindowHost.swift */; };
 		D4E5F60718293A4B5C6D7F3 /* WindowChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F60718293A4B5C6D7F2 /* WindowChrome.swift */; };
 		L0G1N1T3M4N4G3R5F1L3E0B /* LoginItemManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = L0G1N1T3M4N4G3R5F1L3E0A /* LoginItemManager.swift */; };
+		CL1T00L1N5T4LL3R5F1L3E0B /* CommandLineToolInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = CL1T00L1N5T4LL3R5F1L3E0A /* CommandLineToolInstaller.swift */; };
 		C1A5S51F1C4T10NTYP35F1L4 /* ClassificationTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A5S51F1C4T10NTYP35F1L3 /* ClassificationTypes.swift */; };
 		6D96CD6327BAC456381E0EA5 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEE203EF4B1CEB2DB23F281B /* AppSettings.swift */; };
 		A7C4T4L0G5H4R3D2F1L3E0B /* AppCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7C4T4L0G5H4R3D2F1L3E0A /* AppCatalog.swift */; };
@@ -119,6 +124,7 @@
 		C6EA38BFB39E4624A7ABE826 /* Category.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B969BA234A7A24BB9F2CF06 /* Category.swift */; };
 		C106CB0EE567FC91FF051858 /* Rule.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8CF38120EF4F0C7A7AA081D /* Rule.swift */; };
 		B533D47663BADA441FE73050 /* Session.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21BB488EB66E55DD5530DD25 /* Session.swift */; };
+		4CT1V1TYT0P1C5BU1LDF1L3 /* ActivityTopic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CT1V1TYT0P1C5M0D3L5F1L3 /* ActivityTopic.swift */; };
 		3CC77F7AC544B6A851E80589 /* Database.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81051A183DA5D3C78A1E6E8E /* Database.swift */; };
 		1988050E21060FD60D97AFB1 /* ScreenshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFA47B269FF35060CB0AA0CF /* ScreenshotStore.swift */; };
 		369DB235683F5B83D2F5C908 /* BrowserDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17FF586DF908C873F5357B88 /* BrowserDetector.swift */; };
@@ -145,8 +151,10 @@
 		S3SSR3M3MB3R5C0P3F2 /* SessionRememberScope.swift in Sources */ = {isa = PBXBuildFile; fileRef = S3SSR3M3MB3R5C0P3F1L /* SessionRememberScope.swift */; };
 		RUL3V4L1D4T0R5F1L3E2 /* RuleValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = RUL3V4L1D4T0R5F1L3E1 /* RuleValidator.swift */; };
 		B78C80E496BC607037332CD4 /* NudgeEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0848FADA126523A47494DEB6 /* NudgeEngine.swift */; };
+		B78C80E496BC607037332CD5 /* SummaryNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0848FADA126523A47494DEB7 /* SummaryNotifier.swift */; };
 		A1C0N1C0A55E7C4A7A1C0N1C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1C0N1C0A55E7C4A7A1C0N1D /* Assets.xcassets */; };
 		F10WLOG1C0NA55E7C4A7A1E /* Flowlog.icon in Resources */ = {isa = PBXBuildFile; fileRef = F10WLOG1C0NA55E7C4A7A1D /* Flowlog.icon */; };
+		F10WL0G5CR1PT0BLD00000A2 /* flowlog in Resources */ = {isa = PBXBuildFile; fileRef = F10WL0G5CR1PT0R3F00000A1 /* flowlog */; };
 		334F88284D60777BDEE67455 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 43823E14BB3DDA5E591B59F8 /* GRDB */; };
 		AE71B0AA0000000000000A01 /* AgentTag in Frameworks */ = {isa = PBXBuildFile; productRef = AE71B0AA0000000000000A02 /* AgentTag */; };
 		4F6F5CC3FCCF73F75AE9CCF4 /* Frameworks */ = {
@@ -174,6 +182,7 @@
 				D4E5F60718293A4B5C6D7F5 /* OnboardingWindowHost.swift in Sources */,
 				D4E5F60718293A4B5C6D7F3 /* WindowChrome.swift in Sources */,
 				L0G1N1T3M4N4G3R5F1L3E0B /* LoginItemManager.swift in Sources */,
+				CL1T00L1N5T4LL3R5F1L3E0B /* CommandLineToolInstaller.swift in Sources */,
 				C1A5S51F1C4T10NTYP35F1L4 /* ClassificationTypes.swift in Sources */,
 				6D96CD6327BAC456381E0EA5 /* AppSettings.swift in Sources */,
 				A7C4T4L0G5H4R3D2F1L3E0B /* AppCatalog.swift in Sources */,
@@ -189,6 +198,7 @@
 				C6EA38BFB39E4624A7ABE826 /* Category.swift in Sources */,
 				C106CB0EE567FC91FF051858 /* Rule.swift in Sources */,
 				B533D47663BADA441FE73050 /* Session.swift in Sources */,
+				4CT1V1TYT0P1C5BU1LDF1L3 /* ActivityTopic.swift in Sources */,
 				3CC77F7AC544B6A851E80589 /* Database.swift in Sources */,
 				1988050E21060FD60D97AFB1 /* ScreenshotStore.swift in Sources */,
 				369DB235683F5B83D2F5C908 /* BrowserDetector.swift in Sources */,
@@ -215,6 +225,7 @@
 				S3SSR3M3MB3R5C0P3F2 /* SessionRememberScope.swift in Sources */,
 				RUL3V4L1D4T0R5F1L3E2 /* RuleValidator.swift in Sources */,
 				B78C80E496BC607037332CD4 /* NudgeEngine.swift in Sources */,
+				B78C80E496BC607037332CD5 /* SummaryNotifier.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -224,6 +235,7 @@
 			files = (
 				A1C0N1C0A55E7C4A7A1C0N1C /* Assets.xcassets in Resources */,
 				F10WLOG1C0NA55E7C4A7A1E /* Flowlog.icon in Resources */,
+				F10WL0G5CR1PT0BLD00000A2 /* flowlog in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -242,6 +254,7 @@
 				D4E5F60718293A4B5C6D7F4 /* OnboardingWindowHost.swift */,
 				D4E5F60718293A4B5C6D7F2 /* WindowChrome.swift */,
 				L0G1N1T3M4N4G3R5F1L3E0A /* LoginItemManager.swift */,
+				CL1T00L1N5T4LL3R5F1L3E0A /* CommandLineToolInstaller.swift */,
 				C1A5S51F1C4T10NTYP35F1L3 /* ClassificationTypes.swift */,
 				EEE203EF4B1CEB2DB23F281B /* AppSettings.swift */,
 				A7C4T4L0G5H4R3D2F1L3E0A /* AppCatalog.swift */,
@@ -257,6 +270,7 @@
 				9B969BA234A7A24BB9F2CF06 /* Category.swift */,
 				D8CF38120EF4F0C7A7AA081D /* Rule.swift */,
 				21BB488EB66E55DD5530DD25 /* Session.swift */,
+				4CT1V1TYT0P1C5M0D3L5F1L3 /* ActivityTopic.swift */,
 				81051A183DA5D3C78A1E6E8E /* Database.swift */,
 				EFA47B269FF35060CB0AA0CF /* ScreenshotStore.swift */,
 				17FF586DF908C873F5357B88 /* BrowserDetector.swift */,
@@ -281,8 +295,10 @@
 				S3SSR3CL4SS1FY5H33T1 /* SessionReclassifySheet.swift */,
 				S3SSR3H0T5HUMB5F1L3E1 /* SessionScreenshotThumb.swift */,
 				0848FADA126523A47494DEB6 /* NudgeEngine.swift */,
+				0848FADA126523A47494DEB7 /* SummaryNotifier.swift */,
 				A1C0N1C0A55E7C4A7A1C0N1D /* Assets.xcassets */,
 				F10WLOG1C0NA55E7C4A7A1D /* Flowlog.icon */,
+				F10WL0G5CR1PT0R3F00000A1 /* flowlog */,
 			);
 			path = "";
 			sourceTree = "<group>";

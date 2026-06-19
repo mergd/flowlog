@@ -5,12 +5,6 @@ struct SessionRowView: View {
     var showsTimeRange = true
     var onScreenshotTap: ((String) -> Void)?
 
-    private static let timeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return formatter
-    }()
-
     var body: some View {
         HStack(alignment: .center, spacing: 10) {
             RoundedRectangle(cornerRadius: 2, style: .continuous)
@@ -34,7 +28,9 @@ struct SessionRowView: View {
                             .monospacedDigit()
                     }
 
-                    DurationLabel(seconds: session.duration)
+                    if session.duration >= 60 {
+                        DurationLabel(seconds: session.duration)
+                    }
 
                     if let screenshotId = session.screenshotId, onScreenshotTap != nil {
                         SessionScreenshotThumb(screenshotId: screenshotId) {
@@ -69,7 +65,6 @@ struct SessionRowView: View {
     }
 
     private var timeRange: String {
-        let end = session.end ?? Date()
-        return "\(Self.timeFormatter.string(from: session.start))–\(Self.timeFormatter.string(from: end))"
+        ClockRange.label(session.start, session.end ?? Date())
     }
 }

@@ -4,6 +4,8 @@ import SwiftUI
 struct SettingsView: View {
     @State private var settings = AppSettings.shared
     @State private var appleStatus = AppleClassifier.shared.status
+    @State private var cliStatus = CommandLineToolInstaller.currentStatus()
+    @State private var cliError: String?
 
     var body: some View {
         Form {
@@ -30,10 +32,24 @@ struct SettingsView: View {
                     .onChange(of: settings.nudgesEnabled) { _, enabled in
                         if enabled { NudgeEngine.shared.start() }
                     }
+                Toggle("Only during work hours", isOn: Bindable(settings).nudgeOnlyDuringWorkHours)
                 Stepper("Threshold: \(settings.nudgeThresholdMinutes) min/hr", value: Bindable(settings).nudgeThresholdMinutes, in: 5...60, step: 5)
                 Stepper("Cooldown: \(settings.nudgeCooldownMinutes) min", value: Bindable(settings).nudgeCooldownMinutes, in: 10...120, step: 5)
                 Stepper("Quiet start: \(hourLabel(settings.quietHoursStart))", value: Bindable(settings).quietHoursStart, in: 0...23)
                 Stepper("Quiet end: \(hourLabel(settings.quietHoursEnd))", value: Bindable(settings).quietHoursEnd, in: 0...23)
+            }
+
+            Section("Summaries") {
+                Toggle("Daily summary", isOn: Bindable(settings).dailySummaryEnabled)
+                    .onChange(of: settings.dailySummaryEnabled) { _, _ in SummaryNotifier.shared.start() }
+                if settings.dailySummaryEnabled {
+                    Stepper("Daily at \(hourLabel(settings.dailySummaryHour))", value: Bindable(settings).dailySummaryHour, in: 0...23)
+                }
+                Toggle("Weekly summary", isOn: Bindable(settings).weeklySummaryEnabled)
+                    .onChange(of: settings.weeklySummaryEnabled) { _, _ in SummaryNotifier.shared.start() }
+                if settings.weeklySummaryEnabled {
+                    Stepper("Weekly at \(hourLabel(settings.weeklySummaryHour))", value: Bindable(settings).weeklySummaryHour, in: 0...23)
+                }
             }
 
             Section("Work context") {
@@ -65,6 +81,10 @@ struct SettingsView: View {
                 permissionRow("Screen Recording", granted: Permissions.isScreenRecordingGranted())
                 Button("Open Accessibility Settings") { openAccessibilitySettings() }
                 Button("Open Screen Recording Settings") { openScreenRecordingSettings() }
+            }
+
+            Section("Command line tool") {
+                commandLineToolSection
             }
 
             Section("About") {
@@ -123,6 +143,56 @@ struct SettingsView: View {
             }
         }
         .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private var commandLineToolSection: some View {
+        Text("Installs the `flowlog` command at `/usr/local/bin` so you can query your tracked data from any terminal (`flowlog health`, `flowlog summary`). You'll be asked for your password once.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+
+        switch cliStatus {
+        case .installed:
+            LabeledContent("Status") {
+                Text("Installed").foregroundStyle(.green)
+            }
+            Button("Uninstall", role: .destructive) { runCLIAction(CommandLineToolInstaller.uninstall) }
+        case .installedElsewhere(let path):
+            LabeledContent("Status") {
+                Text("Installed elsewhere").foregroundStyle(.orange)
+            }
+            Text(path)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .textSelection(.enabled)
+            Button("Reinstall for this app") { runCLIAction(CommandLineToolInstaller.install) }
+        case .notInstalled:
+            Button("Install flowlog command…") { runCLIAction(CommandLineToolInstaller.install) }
+        case .unavailable:
+            Text("Not available in this build.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+
+        if let cliError {
+            Text(cliError)
+                .font(.caption)
+                .foregroundStyle(.orange)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// Run an install/uninstall action (which shows a system admin prompt), then
+    /// refresh status and surface any error message.
+    private func runCLIAction(_ action: () throws -> Void) {
+        cliError = nil
+        do {
+            try action()
+        } catch {
+            cliError = error.localizedDescription
+        }
+        cliStatus = CommandLineToolInstaller.currentStatus()
     }
 
     private var fallbackMessage: String {

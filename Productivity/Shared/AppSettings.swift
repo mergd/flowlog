@@ -129,6 +129,38 @@ final class AppSettings {
         set { defaults.set(newValue, forKey: "workHoursEnd") }
     }
 
+    /// When set, the off-track nudge only fires during configured work hours.
+    var nudgeOnlyDuringWorkHours: Bool {
+        get { defaults.object(forKey: "nudgeOnlyDuringWorkHours") == nil ? true : defaults.bool(forKey: "nudgeOnlyDuringWorkHours") }
+        set { defaults.set(newValue, forKey: "nudgeOnlyDuringWorkHours") }
+    }
+
+    var dailySummaryEnabled: Bool {
+        get { defaults.object(forKey: "dailySummaryEnabled") == nil ? true : defaults.bool(forKey: "dailySummaryEnabled") }
+        set { defaults.set(newValue, forKey: "dailySummaryEnabled") }
+    }
+
+    var dailySummaryHour: Int {
+        get { defaults.object(forKey: "dailySummaryHour") == nil ? 18 : defaults.integer(forKey: "dailySummaryHour") }
+        set { defaults.set(newValue, forKey: "dailySummaryHour") }
+    }
+
+    var weeklySummaryEnabled: Bool {
+        get { defaults.object(forKey: "weeklySummaryEnabled") == nil ? true : defaults.bool(forKey: "weeklySummaryEnabled") }
+        set { defaults.set(newValue, forKey: "weeklySummaryEnabled") }
+    }
+
+    var weeklySummaryHour: Int {
+        get { defaults.object(forKey: "weeklySummaryHour") == nil ? 18 : defaults.integer(forKey: "weeklySummaryHour") }
+        set { defaults.set(newValue, forKey: "weeklySummaryHour") }
+    }
+
+    /// Calendar weekday (1 = Sunday) the weekly summary fires on.
+    var weeklySummaryWeekday: Int {
+        get { defaults.object(forKey: "weeklySummaryWeekday") == nil ? 1 : defaults.integer(forKey: "weeklySummaryWeekday") }
+        set { defaults.set(newValue, forKey: "weeklySummaryWeekday") }
+    }
+
     var workContext: String {
         get { defaults.string(forKey: "workContext") ?? "Software engineer" }
         set { defaults.set(newValue, forKey: "workContext") }

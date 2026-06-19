@@ -19,7 +19,9 @@ struct DayView: View {
     @State private var anchor = Date()
     @State private var sessions: [Session] = []
     @State private var blocks: [ActivityBlock] = []
+    @State private var pauses: [Pause] = []
     @State private var totals: [String: TimeInterval] = [:]
+    @State private var topicTotals: [String: TimeInterval] = [:]
     @State private var selectedScreenshot: String?
     @State private var reclassifyTarget: ReclassifyTarget?
     @State private var selectedBinId: Int?
@@ -48,12 +50,14 @@ struct DayView: View {
                             bins: bins,
                             order: categoryOrder,
                             inProgressBinId: inProgressBinId,
+                            inProgressFraction: inProgressFraction,
                             selectedBinId: selectedBinId,
                             onTapBin: tapBin
                         )
                         .padding(.horizontal, DashboardTheme.hInset)
                         legend
                             .padding(.horizontal, DashboardTheme.hInset)
+                        topicBreakdown
                         Divider().padding(.horizontal, DashboardTheme.hInset)
                         contentList
                     }
@@ -167,6 +171,40 @@ struct DayView: View {
         }
     }
 
+    @ViewBuilder
+    private var topicBreakdown: some View {
+        let rows = topicRows
+        if !rows.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("By topic")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+
+                ForEach(rows, id: \.topic) { row in
+                    let fraction = trackedSeconds > 0 ? row.seconds / trackedSeconds : 0
+                    HStack(spacing: 8) {
+                        Image(systemName: row.topic.iconName)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 16)
+                        Text(row.topic.displayName)
+                            .font(.caption)
+                        Spacer(minLength: 8)
+                        Text("\(Int((fraction * 100).rounded()))%")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                            .monospacedDigit()
+                        Text(DurationFormatting.short(row.seconds))
+                            .font(.caption.weight(.medium))
+                            .monospacedDigit()
+                            .frame(width: 52, alignment: .trailing)
+                    }
+                }
+            }
+            .padding(.horizontal, DashboardTheme.hInset)
+        }
+    }
+
     // MARK: - Content list
 
     @ViewBuilder
@@ -254,6 +292,8 @@ struct DayView: View {
                             .onTapGesture(count: 2) { reclassifyTarget = ReclassifyTarget(session: session) }
                     case let .gap(start, end):
                         gapRow(start: start, end: end)
+                    case let .pause(start, end):
+                        pauseRow(start: start, end: end)
                     }
 
                     if item.id != items.last?.id {
@@ -262,6 +302,29 @@ struct DayView: View {
                 }
             }
         }
+    }
+
+    private func pauseRow(start: Date, end: Date) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "pause.circle.fill")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .frame(width: 24)
+            Text("Paused")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text("\(Self.clockFormatter.string(from: start))–\(Self.clockFormatter.string(from: end))")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .monospacedDigit()
+            Spacer(minLength: 8)
+            Text(DurationFormatting.short(end.timeIntervalSince(start)))
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.tertiary)
+                .monospacedDigit()
+        }
+        .padding(.horizontal, DashboardTheme.hInset)
+        .padding(.vertical, 5)
     }
 
     private func gapRow(start: Date, end: Date) -> some View {
@@ -396,6 +459,16 @@ struct DayView: View {
                 if overlap > 0 { result[i].totals[cat, default: 0] += overlap }
             }
         }
+        for pause in pauses {
+            let pStart = pause.start
+            let pEnd = pause.end ?? now
+            for i in result.indices {
+                let bStart = result[i].date
+                let bEnd = bStart.addingTimeInterval(size)
+                let overlap = min(pEnd, bEnd).timeIntervalSince(max(pStart, bStart))
+                if overlap > 0 { result[i].pausedSeconds += overlap }
+            }
+        }
         return result
     }
 
@@ -405,6 +478,15 @@ struct DayView: View {
         let now = Date()
         let size: TimeInterval = scope == .day ? 3600 : 86400
         return bins.first { $0.date <= now && now < $0.date.addingTimeInterval(size) }?.id
+    }
+
+    /// How far through the in-progress slot (hour/day) we currently are, 0…1.
+    private var inProgressFraction: Double {
+        guard isCurrentPeriod else { return 0 }
+        let now = Date()
+        let size: TimeInterval = scope == .day ? 3600 : 86400
+        guard let bin = bins.first(where: { $0.date <= now && now < $0.date.addingTimeInterval(size) }) else { return 0 }
+        return min(1, max(0, now.timeIntervalSince(bin.date) / size))
     }
 
     private func binLayout() -> ([Date], TimeInterval) {
@@ -482,7 +564,11 @@ struct DayView: View {
             guard index < chrono.count - 1 else { continue }
             let gapStart = session.end ?? session.start
             let gapEnd = chrono[index + 1].start
-            if gapEnd.timeIntervalSince(gapStart) >= Self.untrackedGapThreshold {
+            guard gapEnd.timeIntervalSince(gapStart) >= Self.untrackedGapThreshold else { continue }
+            // A deliberate snooze covering this gap reads as "Paused", not "Untracked".
+            if let pause = pauses.first(where: { $0.start < gapEnd && ($0.end ?? Date()) > gapStart }) {
+                items.append(.pause(start: max(gapStart, pause.start), end: min(gapEnd, pause.end ?? Date())))
+            } else {
                 items.append(.gap(start: gapStart, end: gapEnd))
             }
         }
@@ -497,6 +583,8 @@ struct DayView: View {
             case let .session(s):
                 return overlaps(range, start: s.start, end: s.end ?? s.start.addingTimeInterval(s.duration))
             case let .gap(start, end):
+                return overlaps(range, start: start, end: end)
+            case let .pause(start, end):
                 return overlaps(range, start: start, end: end)
             }
         }
@@ -528,7 +616,20 @@ struct DayView: View {
         let r = range
         sessions = DashboardData.sessions(in: r)
         blocks = scope == .day ? DashboardData.blocks(in: r) : []
+        pauses = DashboardData.pauses(in: r)
         totals = DashboardData.categoryTotals(in: r)
+        topicTotals = DashboardData.topicTotals(in: r)
+    }
+
+    /// Topics with tracked time, largest first. The orthogonal genre axis
+    /// (Social, Developer, Video…) alongside the productive/distracting split.
+    private var topicRows: [(topic: ActivityTopic, seconds: TimeInterval)] {
+        topicTotals
+            .compactMap { key, secs -> (ActivityTopic, TimeInterval)? in
+                guard secs > 0, let topic = ActivityTopic(rawValue: key) else { return nil }
+                return (topic, secs)
+            }
+            .sorted { $0.1 > $1.1 }
     }
 
     // MARK: - Formatters
@@ -559,10 +660,6 @@ struct BlockRowView: View {
     let block: ActivityBlock
     @State private var expanded = false
 
-    private static let clock: DateFormatter = {
-        let f = DateFormatter(); f.timeStyle = .short; return f
-    }()
-
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .center, spacing: 10) {
@@ -578,11 +675,13 @@ struct BlockRowView: View {
                             .font(.subheadline.weight(.medium))
                             .lineLimit(1)
                         Spacer(minLength: 4)
-                        Text("\(Self.clock.string(from: block.start))–\(Self.clock.string(from: block.end))")
+                        Text(ClockRange.label(block.start, block.end))
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                             .monospacedDigit()
-                        DurationLabel(seconds: block.activeDuration)
+                        if block.activeDuration >= 60 {
+                            DurationLabel(seconds: block.activeDuration)
+                        }
                     }
                     secondaryLine
                 }
@@ -603,7 +702,9 @@ struct BlockRowView: View {
                 }
                 .padding(.leading, 37)
                 .padding(.top, 1)
-                .transition(.opacity.combined(with: .move(edge: .top)))
+                // Fade in place; the row height animates the rows below. A `.move(edge: .top)`
+                // here slid the content up *over* the trigger on close, which looked wrong.
+                .transition(.opacity)
             }
         }
         .padding(.vertical, 3)
@@ -627,6 +728,12 @@ struct BlockRowView: View {
                     HStack(spacing: -7) {
                         ForEach(block.shares.prefix(7)) { share in
                             shareIcon(share, size: 18, showBadge: false)
+                                // Opaque base so overlapping chips fully cover each other
+                                // (the letter-glyph fallback is otherwise translucent).
+                                .background(
+                                    RoundedRectangle(cornerRadius: 18 * 0.24, style: .continuous)
+                                        .fill(DashboardTheme.surface)
+                                )
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 18 * 0.24, style: .continuous)
                                         .strokeBorder(DashboardTheme.surface, lineWidth: 1.5)
@@ -673,6 +780,7 @@ struct BlockRowView: View {
 private enum TimelineItem: Identifiable {
     case session(Session)
     case gap(start: Date, end: Date)
+    case pause(start: Date, end: Date)
 
     var id: String {
         switch self {
@@ -680,6 +788,8 @@ private enum TimelineItem: Identifiable {
             return "s-\(session.id ?? Int64(session.start.timeIntervalSince1970))"
         case let .gap(start, end):
             return "g-\(Int(start.timeIntervalSince1970))-\(Int(end.timeIntervalSince1970))"
+        case let .pause(start, end):
+            return "p-\(Int(start.timeIntervalSince1970))-\(Int(end.timeIntervalSince1970))"
         }
     }
 }
@@ -692,6 +802,7 @@ struct UsageBin: Identifiable {
     let date: Date
     var totals: [ActivityCategory: TimeInterval]
     var isFuture: Bool = false
+    var pausedSeconds: TimeInterval = 0
     var total: TimeInterval { totals.values.reduce(0, +) }
 }
 
@@ -722,10 +833,11 @@ struct UsageBarChart: View {
     let order: [ActivityCategory]
     var height: CGFloat = 120
     var inProgressBinId: Int? = nil
+    var inProgressFraction: Double = 0
     var selectedBinId: Int? = nil
     var onTapBin: ((UsageBin) -> Void)? = nil
 
-    private var maxTotal: TimeInterval { max(bins.map(\.total).max() ?? 0, 1) }
+    private var maxTotal: TimeInterval { max(bins.map { $0.total + $0.pausedSeconds }.max() ?? 0, 1) }
 
     var body: some View {
         HStack(alignment: .bottom, spacing: bins.count > 7 ? 2 : 8) {
@@ -745,7 +857,8 @@ struct UsageBarChart: View {
     }
 
     private func column(_ bin: UsageBin) -> some View {
-        let barHeight = height * CGFloat(bin.total / maxTotal)
+        let combined = bin.total + bin.pausedSeconds
+        let barHeight = height * CGFloat(combined / maxTotal)
         let isCurrent = bin.id == inProgressBinId
         let isSelected = bin.id == selectedBinId
         return VStack {
@@ -753,10 +866,15 @@ struct UsageBarChart: View {
             VStack(spacing: 0) {
                 ForEach(order, id: \.self) { cat in
                     let secs = bin.totals[cat] ?? 0
-                    if secs > 0, bin.total > 0 {
+                    if secs > 0, combined > 0 {
                         CategoryColors.color(for: cat)
-                            .frame(height: max(barHeight * CGFloat(secs / bin.total), 1))
+                            .frame(height: max(barHeight * CGFloat(secs / combined), 1))
                     }
+                }
+                if bin.pausedSeconds > 0, combined > 0 {
+                    // Snoozed time — muted band, distinct from both tracked and empty.
+                    Color.secondary.opacity(0.28)
+                        .frame(height: max(barHeight * CGFloat(bin.pausedSeconds / combined), 1))
                 }
             }
             .frame(maxWidth: .infinity)
@@ -765,12 +883,32 @@ struct UsageBarChart: View {
         }
         .frame(height: height)
         // Faint full-height slot behind each bar so untracked/empty time reads honestly.
-        // Future slots stay blank (time hasn't passed); the current hour gets an accent tint.
+        // Future slots stay blank; the current hour shows a progress fill up to "now".
         .background {
-            RoundedRectangle(cornerRadius: 3, style: .continuous)
-                .fill(bin.isFuture ? Color.clear : (isCurrent ? Color.accentColor.opacity(0.16) : Color.primary.opacity(0.04)))
+            if bin.isFuture {
+                Color.clear
+            } else if isCurrent {
+                // Progressing bar: accent tint fills from the bottom up to the
+                // fraction of the hour that has elapsed.
+                VStack(spacing: 0) {
+                    Color.primary.opacity(0.04)
+                    Color.accentColor.opacity(0.16)
+                        .frame(height: height * CGFloat(inProgressFraction))
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
+            } else {
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    .fill(Color.primary.opacity(0.04))
+            }
         }
         .overlay {
+            // Current-time line at the top of the progress fill.
+            if isCurrent {
+                Rectangle()
+                    .fill(Color.accentColor)
+                    .frame(height: 1.5)
+                    .offset(y: height * CGFloat(0.5 - inProgressFraction))
+            }
             if isSelected {
                 RoundedRectangle(cornerRadius: 3, style: .continuous)
                     .strokeBorder(Color.accentColor, lineWidth: 1.5)

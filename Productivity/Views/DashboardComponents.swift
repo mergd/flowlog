@@ -32,6 +32,19 @@ enum DurationFormatting {
     }
 }
 
+enum ClockRange {
+    private static let formatter: DateFormatter = {
+        let f = DateFormatter(); f.timeStyle = .short; return f
+    }()
+
+    /// "4:18–4:52", collapsed to just "4:18" when start and end fall in the same minute.
+    static func label(_ start: Date, _ end: Date) -> String {
+        let s = formatter.string(from: start)
+        let e = formatter.string(from: end)
+        return s == e ? s : "\(s)–\(e)"
+    }
+}
+
 extension View {
     func dashboardSurface() -> some View {
         background(DashboardTheme.surface)

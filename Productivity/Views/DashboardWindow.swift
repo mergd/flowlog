@@ -19,22 +19,22 @@ struct DashboardWindow: View {
             }
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
-            .background(DashboardTheme.surface)
+            .background(DashboardTheme.surface.ignoresSafeArea())
             .navigationSplitViewColumnWidth(168)
             .agentTag("sidebarList")
         } detail: {
             detail
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    VStack(spacing: 0) {
+                        if coordinator.isSnoozed { snoozeBanner }
+                        if !screenRecordingGranted { screenRecordingBanner }
+                    }
+                }
                 .agentTag("dashboardDetail")
         }
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: DashboardTheme.minWidth, minHeight: DashboardTheme.minHeight)
-        .safeAreaInset(edge: .top, spacing: 0) {
-            VStack(spacing: 0) {
-                if coordinator.isSnoozed { snoozeBanner }
-                if !screenRecordingGranted { screenRecordingBanner }
-            }
-        }
         .toolbar(removing: .title)
         .toolbarBackground(.hidden, for: .windowToolbar)
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
@@ -54,9 +54,14 @@ struct DashboardWindow: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             Spacer()
-            Button("Enable…") { SystemSettings.open(.screenCapture) }
-                .buttonStyle(.link)
-                .controlSize(.small)
+            Button("Enable…") {
+                // Try the OS prompt first; if it won't show (already decided), jump to Settings.
+                if !Permissions.requestScreenRecordingAccess() {
+                    SystemSettings.open(.screenCapture)
+                }
+            }
+            .buttonStyle(.link)
+            .controlSize(.small)
         }
         .padding(.horizontal, DashboardTheme.hInset)
         .padding(.vertical, 6)

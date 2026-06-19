@@ -111,6 +111,82 @@ enum AppCatalog {
         "public.app-category.food-and-drink": .neutral,
     ]
 
+    /// App Store `LSApplicationCategoryType` → topic. The genre axis, kept
+    /// independent of the productive/distracting verdict above.
+    private static let appStoreTopicMap: [String: ActivityTopic] = [
+        "public.app-category.developer-tools": .developer,
+        "public.app-category.productivity": .productivity,
+        "public.app-category.business": .business,
+        "public.app-category.education": .education,
+        "public.app-category.graphics-design": .design,
+        "public.app-category.social-networking": .social,
+        "public.app-category.games": .games,
+        "public.app-category.entertainment": .entertainment,
+        "public.app-category.music": .music,
+        "public.app-category.video": .video,
+        "public.app-category.photography": .photography,
+        "public.app-category.news": .news,
+        "public.app-category.finance": .finance,
+        "public.app-category.shopping": .shopping,
+        "public.app-category.reference": .reference,
+        "public.app-category.utilities": .utilities,
+        "public.app-category.lifestyle": .lifestyle,
+        "public.app-category.healthcare-fitness": .health,
+        "public.app-category.medical": .health,
+        "public.app-category.travel": .travel,
+        "public.app-category.food-and-drink": .food,
+        "public.app-category.sports": .sports,
+        "public.app-category.weather": .utilities,
+    ]
+
+    /// Curated topic for specific apps, where the App Store genre is missing,
+    /// wrong, or absent (e.g. browsers, which take their topic from the site).
+    private static let knownAppTopics: [String: ActivityTopic] = [
+        "com.todesktop.230313mzl4w4u92": .developer,  // Cursor
+        "com.apple.dt.Xcode": .developer,
+        "com.microsoft.VSCode": .developer,
+        "com.apple.Terminal": .developer,
+        "com.googlecode.iterm2": .developer,
+        "com.sublimetext.4": .developer,
+        "com.docker.docker": .developer,
+        "notion.id": .productivity,
+        "com.linear": .productivity,
+        "com.figma.Desktop": .design,
+        "com.obsidian.md": .productivity,
+        "com.apple.Notes": .productivity,
+        "com.tinyspeck.slackmacgap": .communication,
+        "com.microsoft.teams2": .communication,
+        "com.apple.MobileSMS": .communication,
+        "com.apple.mail": .communication,
+        "com.hnc.Discord": .communication,
+        "com.apple.FaceTime": .communication,
+        "com.google.GoogleDrive": .productivity,
+        "com.adobe.Photoshop": .design,
+        "com.adobe.illustrator": .design,
+        "com.spotify.client": .music,
+        "com.apple.Music": .music,
+        "com.valvesoftware.steam": .games,
+        "tv.twitch.studio": .entertainment,
+        "com.netflix.Netflix": .video,
+        "com.apple.finder": .utilities,
+    ]
+
+    /// Topic for a (non-browser) app: curated map → bundle-id prefixes →
+    /// App Store category. Returns nil when nothing recognizes the app.
+    static func topic(for bundleId: String) -> ActivityTopic? {
+        if let exact = knownAppTopics[bundleId] { return exact }
+        if bundleId.hasPrefix("com.jetbrains.") { return .developer }
+        if bundleId.hasPrefix("com.microsoft.VSCode") { return .developer }
+        if bundleId.hasPrefix("com.apple.iWork.") { return .productivity }
+        if bundleId.hasPrefix("com.adobe.") { return .design }
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId),
+           let bundle = Bundle(url: url),
+           let raw = bundle.infoDictionary?["LSApplicationCategoryType"] as? String {
+            return appStoreTopicMap[raw]
+        }
+        return nil
+    }
+
     static func shouldTrack(bundleId: String) -> Bool {
         if ignoredBundleIds.contains(bundleId) { return false }
         if ignoredPrefixes.contains(where: { bundleId.hasPrefix($0) }) { return false }
@@ -157,4 +233,16 @@ enum AppCatalog {
         guard let category = knownCategory(for: bundleId) else { return nil }
         return (category, .appCatalog)
     }
+
+    /// Apps where the window title is a *stable, meaningful work context* (the repo /
+    /// project / document), so we key sessions and labels on it. Apps whose title
+    /// churns per tab/pane (e.g. cmux) are NOT here — they collapse to the app name.
+    /// Extend `titleContextBundleIds` as we add product-specific recognition.
+    static func usesWindowTitleContext(bundleId: String) -> Bool {
+        EditorContext.isEditor(bundleId: bundleId) || titleContextBundleIds.contains(bundleId)
+    }
+
+    private static let titleContextBundleIds: Set<String> = [
+        // Curated apps whose window title is the document/context. Add as recognized.
+    ]
 }

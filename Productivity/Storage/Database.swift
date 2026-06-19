@@ -51,6 +51,9 @@ final class DatabaseManager: @unchecked Sendable {
     }
 
     var queue: DatabaseQueue {
+        // Lazily set up if a reader (e.g. a restored dashboard window) touches the
+        // DB before tracking has started. setup() is idempotent.
+        if dbQueue == nil { try? setup() }
         guard let dbQueue else { fatalError("Database not setup") }
         return dbQueue
     }
@@ -66,7 +69,46 @@ final class DatabaseManager: @unchecked Sendable {
             try Session.createTable(db)
             try Rule.createTable(db)
         }
+        migrator.registerMigration("v2") { db in
+            try Pause.createTable(db)
+        }
+        migrator.registerMigration("v3") { db in
+            // Screen Time–style topic axis, orthogonal to `category`.
+            try db.alter(table: Session.databaseTableName) { t in
+                t.add(column: "topic", .text)
+            }
+        }
         return migrator
+    }
+
+    // MARK: - Pauses (deliberate snoozes)
+
+    @discardableResult
+    func beginPause(start: Date, plannedEnd: Date?) throws -> Int64 {
+        try queue.write { db in
+            var pause = Pause(id: nil, start: start, end: plannedEnd)
+            try pause.insert(db)
+            return db.lastInsertedRowID
+        }
+    }
+
+    func endPause(id: Int64, end: Date) throws {
+        try queue.write { db in
+            if var pause = try Pause.fetchOne(db, key: id) {
+                pause.end = end
+                try pause.update(db)
+            }
+        }
+    }
+
+    func pauses(in range: Range<Date>) throws -> [Pause] {
+        try queue.read { db in
+            try Pause
+                .filter(Pause.Columns.start < range.upperBound)
+                .filter(Pause.Columns.end == nil || Pause.Columns.end > range.lowerBound)
+                .order(Pause.Columns.start.asc)
+                .fetchAll(db)
+        }
     }
 
     func sessionsToday() throws -> [Session] {
@@ -164,6 +206,32 @@ final class DatabaseManager: @unchecked Sendable {
             totals[s.category, default: 0] += s.duration
         }
         return totals
+    }
+
+    func topicTotalsToday() throws -> [String: TimeInterval] {
+        try includedSessionsToday().reduce(into: [:]) { totals, s in
+            totals[Self.resolvedTopic(for: s).rawValue, default: 0] += s.duration
+        }
+    }
+
+    func topicTotals(in range: Range<Date>) throws -> [String: TimeInterval] {
+        try includedSessions(in: range).reduce(into: [:]) { totals, s in
+            totals[Self.resolvedTopic(for: s).rawValue, default: 0] += s.duration
+        }
+    }
+
+    /// Topic for a session, deriving it on read for rows written before the topic
+    /// axis existed (or that were stored as uncategorized).
+    private static func resolvedTopic(for session: Session) -> ActivityTopic {
+        if session.activityTopic != .uncategorized { return session.activityTopic }
+        let context = BrowserDetector.isBrowser(session.bundleId)
+            ? SiteCatalog.parse(windowTitle: session.windowTitle)
+            : ParsedBrowserContext.empty
+        return ActivityTopic.resolve(
+            bundleId: session.bundleId,
+            domain: context.domain,
+            siteLabel: session.siteLabel ?? context.siteLabel
+        )
     }
 
     func distractingDuration(since: Date) throws -> TimeInterval {
