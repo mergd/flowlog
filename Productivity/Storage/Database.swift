@@ -15,6 +15,41 @@ final class DatabaseManager: @unchecked Sendable {
         try migrator.migrate(dbQueue)
     }
 
+    func closeDanglingOpenSessions() throws {
+        try queue.write { db in
+            let now = Date()
+            let sessions = try Session
+                .filter(Session.Columns.end == nil)
+                .fetchAll(db)
+
+            for var session in sessions {
+                let storedDuration = max(0, session.duration)
+                let inferredEnd = min(session.start.addingTimeInterval(storedDuration), now)
+                session.end = inferredEnd
+                session.duration = max(0, inferredEnd.timeIntervalSince(session.start))
+                if !AppCatalog.shouldTrack(bundleId: session.bundleId)
+                    || session.duration < AppCatalog.minimumSessionDuration {
+                    session.idleExcluded = true
+                }
+                try session.update(db)
+            }
+        }
+    }
+
+    func normalizeLegacySessionExclusions() throws {
+        try queue.write { db in
+            let sessions = try Session
+                .filter(Session.Columns.idleExcluded == true)
+                .fetchAll(db)
+
+            for var session in sessions where AppCatalog.shouldTrack(bundleId: session.bundleId)
+                && session.duration >= AppCatalog.minimumSessionDuration {
+                session.idleExcluded = false
+                try session.update(db)
+            }
+        }
+    }
+
     var queue: DatabaseQueue {
         guard let dbQueue else { fatalError("Database not setup") }
         return dbQueue
@@ -39,6 +74,33 @@ final class DatabaseManager: @unchecked Sendable {
             .filter { AppCatalog.shouldDisplay(bundleId: $0.bundleId, duration: $0.duration, appName: $0.appName) }
     }
 
+    /// Today's activity grouped into intent-coherent blocks (the timeline view).
+    /// Unlike the stats path, this counts *all* tracked activity — brief slices
+    /// aren't excluded as noise; they fold into blocks as the texture of attention.
+    func blocksToday() throws -> [ActivityBlock] {
+        let start = Calendar.current.startOfDay(for: Date())
+        let slices = try queue.read { db in
+            try Session
+                .filter(Session.Columns.start >= start)
+                .order(Session.Columns.start.asc)
+                .fetchAll(db)
+        }
+        .filter { AppCatalog.shouldIncludeInStats(bundleId: $0.bundleId, appName: $0.appName) }
+        return BlockBuilder.build(from: slices)
+    }
+
+    func blocks(in range: Range<Date>) throws -> [ActivityBlock] {
+        let slices = try queue.read { db in
+            try Session
+                .filter(Session.Columns.start >= range.lowerBound)
+                .filter(Session.Columns.start < range.upperBound)
+                .order(Session.Columns.start.asc)
+                .fetchAll(db)
+        }
+        .filter { AppCatalog.shouldIncludeInStats(bundleId: $0.bundleId, appName: $0.appName) }
+        return BlockBuilder.build(from: slices)
+    }
+
     private func includedSessionsToday() throws -> [Session] {
         let start = Calendar.current.startOfDay(for: Date())
         return try queue.read { db in
@@ -54,9 +116,7 @@ final class DatabaseManager: @unchecked Sendable {
         guard AppCatalog.shouldIncludeInStats(bundleId: session.bundleId, appName: session.appName) else {
             return false
         }
-        if !session.idleExcluded { return true }
-        // Older builds marked sub-minimum sessions idleExcluded on close; keep those in totals.
-        return session.duration < AppCatalog.minimumSessionDuration
+        return !session.idleExcluded
     }
 
     func sessions(in range: Range<Date>) throws -> [Session] {
@@ -72,6 +132,33 @@ final class DatabaseManager: @unchecked Sendable {
 
     func categoryTotalsToday() throws -> [String: TimeInterval] {
         let sessions = try includedSessionsToday()
+        var totals: [String: TimeInterval] = [:]
+        for s in sessions {
+            totals[s.category, default: 0] += s.duration
+        }
+        return totals
+    }
+
+    /// Stats-included sessions for an arbitrary range (same filtering as the "today" path).
+    func includedSessions(in range: Range<Date>) throws -> [Session] {
+        try queue.read { db in
+            try Session
+                .filter(Session.Columns.start >= range.lowerBound)
+                .filter(Session.Columns.start < range.upperBound)
+                .order(Session.Columns.start.asc)
+                .fetchAll(db)
+                .filter(isIncludedInStats)
+        }
+    }
+
+    /// Display-worthy sessions for an arbitrary range.
+    func sessionsForDisplay(in range: Range<Date>) throws -> [Session] {
+        try includedSessions(in: range)
+            .filter { AppCatalog.shouldDisplay(bundleId: $0.bundleId, duration: $0.duration, appName: $0.appName) }
+    }
+
+    func categoryTotals(in range: Range<Date>) throws -> [String: TimeInterval] {
+        let sessions = try includedSessions(in: range)
         var totals: [String: TimeInterval] = [:]
         for s in sessions {
             totals[s.category, default: 0] += s.duration
@@ -103,7 +190,11 @@ final class DatabaseManager: @unchecked Sendable {
             if BrowserDetector.isBrowser(bundleId) {
                 let context = SiteCatalog.parse(windowTitle: session.windowTitle)
                 let domain = context.domain
-                let siteLabel = session.siteLabel ?? context.siteLabel ?? domain ?? "Unknown site"
+                let siteLabel = SiteCatalog.sanitizedSiteLabel(
+                    session.siteLabel ?? context.siteLabel,
+                    bundleId: bundleId,
+                    appName: appName
+                ) ?? context.siteLabel ?? domain ?? appName
                 let siteKey = SiteCatalog.siteKey(domain: domain, siteLabel: siteLabel)
 
                 var appEntry = appMap[bundleId] ?? (appName, 0, category)

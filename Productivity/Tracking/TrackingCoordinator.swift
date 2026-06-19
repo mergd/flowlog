@@ -15,15 +15,27 @@ final class TrackingCoordinator: ObservableObject {
     private var currentTitle: String?
     private var lastBrowserContext: ParsedBrowserContext = .empty
     private var lastScreenshotDate: Date?
-    private let screenshotInterval: TimeInterval = 180
+    private let screenshotInterval: TimeInterval = 60
 
     @Published var isTracking = false
     @Published private(set) var menuBarSession: MenuBarSessionInfo?
+    @Published private(set) var snoozedUntil: Date?
+    private var snoozeTimer: Timer?
+
+    var isSnoozed: Bool { snoozedUntil != nil }
+
+    /// False when window titles can't be read — either Accessibility trust was lost
+    /// at runtime, or tracked apps keep returning no title. Drives a degraded-state hint.
+    @Published private(set) var accessibilityHealthy = true
+    private var consecutiveTitleMisses = 0
+    private let titleMissThreshold = 15  // ~30s of polls with no readable title
 
     func start() {
         guard !isTracking else { return }
         do {
             try DatabaseManager.shared.setup()
+            try DatabaseManager.shared.closeDanglingOpenSessions()
+            try DatabaseManager.shared.normalizeLegacySessionExclusions()
         } catch {
             FlowlogLog.tracking("Database setup failed: \(error.localizedDescription)")
         }
@@ -40,18 +52,7 @@ final class TrackingCoordinator: ObservableObject {
             }
         }
         workspace.start()
-
-        pollTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
-            Task { await self?.poll() }
-        }
-
-        screenshotTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
-            Task { await self?.maybePeriodicScreenshot() }
-        }
-
-        purgeTimer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { _ in
-            ScreenshotStore.shared.purgeOlderThan()
-        }
+        startPolling()
 
         ScreenshotStore.shared.purgeOlderThan()
         NudgeEngine.shared.start()
@@ -61,14 +62,60 @@ final class TrackingCoordinator: ObservableObject {
 
     func stop() {
         workspace.stop()
-        pollTimer?.invalidate()
-        screenshotTimer?.invalidate()
-        purgeTimer?.invalidate()
+        invalidateTimers()
+        snoozeTimer?.invalidate()
+        snoozeTimer = nil
+        snoozedUntil = nil
         NudgeEngine.shared.stop()
         Task {
             await track("close session on stop") { try await recorder.closeCurrentSession() }
         }
         isTracking = false
+    }
+
+    private func startPolling() {
+        pollTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+            Task { await self?.poll() }
+        }
+        screenshotTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+            Task { await self?.maybePeriodicScreenshot() }
+        }
+        purgeTimer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { _ in
+            ScreenshotStore.shared.purgeOlderThan()
+        }
+    }
+
+    private func invalidateTimers() {
+        pollTimer?.invalidate(); pollTimer = nil
+        screenshotTimer?.invalidate(); screenshotTimer = nil
+        purgeTimer?.invalidate(); purgeTimer = nil
+    }
+
+    /// Pause tracking for a duration (closes the current session and stops polling).
+    func snooze(for duration: TimeInterval) {
+        guard isTracking else { return }
+        snoozedUntil = Date().addingTimeInterval(duration)
+        invalidateTimers()
+        NudgeEngine.shared.stop()
+        Task { await track("close on snooze") { try await recorder.closeCurrentSession() } }
+
+        snoozeTimer?.invalidate()
+        snoozeTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { [weak self] _ in
+            Task { @MainActor in self?.endSnooze() }
+        }
+        refreshMenuBarSession()
+    }
+
+    /// Resume tracking immediately (or automatically when the snooze elapses).
+    func endSnooze() {
+        snoozeTimer?.invalidate()
+        snoozeTimer = nil
+        guard snoozedUntil != nil else { return }
+        snoozedUntil = nil
+        guard isTracking else { return }
+        startPolling()
+        NudgeEngine.shared.start()
+        refreshMenuBarSession()
     }
 
     private func handleAppSwitch(_ app: NSRunningApplication) async {
@@ -79,7 +126,7 @@ final class TrackingCoordinator: ObservableObject {
             lastBrowserContext = .empty
         }
         currentApp = app
-        currentTitle = WindowTitleReader.focusedWindowTitle(for: app)
+        currentTitle = readTitle(for: app)
         await openSession(for: app, title: currentTitle)
         refreshMenuBarSession()
     }
@@ -93,7 +140,18 @@ final class TrackingCoordinator: ObservableObject {
             return
         }
 
-        let title = WindowTitleReader.focusedWindowTitle(for: app)
+        let title = readTitle(for: app)
+
+        if title == nil, currentTitle != nil {
+            let hasSession = await recorder.hasActiveSession(for: bundleId)
+            if !hasSession {
+                await openSession(for: app, title: currentTitle)
+            }
+            await track("tick duration") { try await recorder.tickDuration() }
+            refreshMenuBarSession()
+            return
+        }
+
         guard title != currentTitle else {
             let hasSession = await recorder.hasActiveSession(for: bundleId)
             if !hasSession {
@@ -105,25 +163,36 @@ final class TrackingCoordinator: ObservableObject {
         }
 
         if BrowserDetector.isBrowser(bundleId) {
-            let oldContext = resolvedBrowserContext(title: currentTitle, bundleId: bundleId)
-            let newContext = resolvedBrowserContext(title: title, bundleId: bundleId)
+            let previousContext = lastBrowserContext
+            // resolvedBrowserContext reads the live URL and updates lastBrowserContext,
+            // so compare the new context against the previous poll's stored value.
+            let newContext = resolvedBrowserContext(app: app, title: title, bundleId: bundleId)
 
-            if SiteCatalog.domainChanged(from: oldContext, to: newContext) {
+            if SiteCatalog.domainChanged(from: previousContext, to: newContext) {
                 await captureAndClassify(app: app, title: currentTitle, reason: .tabChange)
                 currentTitle = title
                 await openSession(for: app, title: title, context: newContext)
             } else {
                 currentTitle = title
-                let siteLabel = newContext.siteLabel ?? oldContext.siteLabel
+                let siteLabel = newContext.siteLabel ?? previousContext.siteLabel
                 await track("update session context") {
                     try await recorder.updateCurrentSessionContext(
                         windowTitle: title,
                         siteLabel: siteLabel
                     )
                 }
-                await classifyCurrentSession(app: app, title: title)
             }
         } else {
+            if EditorContext.isEditor(bundleId: bundleId),
+               editorSessionIdentity(bundleId: bundleId, title: title) != editorSessionIdentity(bundleId: bundleId, title: currentTitle) {
+                currentTitle = title
+                await openSession(for: app, title: title)
+                await track("tick duration") { try await recorder.tickDuration() }
+                refreshMenuBarSession()
+                NotificationCenter.default.post(name: .productivityDataDidChange, object: nil)
+                return
+            }
+
             currentTitle = title
             if await recorder.hasActiveSession(for: bundleId) {
                 await track("update session title") {
@@ -141,7 +210,8 @@ final class TrackingCoordinator: ObservableObject {
 
     private func maybePeriodicScreenshot() async {
         guard Permissions.isScreenRecordingGranted() else { return }
-        guard let app = currentApp, BrowserDetector.isBrowser(app.bundleIdentifier ?? "") else { return }
+        guard let app = currentApp, let bundleId = app.bundleIdentifier else { return }
+        guard AppCatalog.shouldTrack(bundleId: bundleId) else { return }
         if let last = lastScreenshotDate, Date().timeIntervalSince(last) < screenshotInterval { return }
         await captureAndClassify(app: app, title: currentTitle, reason: .periodic)
     }
@@ -205,7 +275,7 @@ final class TrackingCoordinator: ObservableObject {
 
         let appName = AppCatalog.friendlyName(bundleId: bundleId, fallback: app.localizedName ?? bundleId)
         let isBrowser = BrowserDetector.isBrowser(bundleId)
-        let browserContext = isBrowser ? (context ?? resolvedBrowserContext(title: title, bundleId: bundleId)) : .empty
+        let browserContext = isBrowser ? (context ?? resolvedBrowserContext(app: app, title: title, bundleId: bundleId)) : .empty
 
         if isBrowser, !SiteCatalog.shouldTrack(domain: browserContext.domain, pageTitle: browserContext.pageTitle, windowTitle: title) {
             if await recorder.hasActiveSession(for: bundleId) {
@@ -221,32 +291,56 @@ final class TrackingCoordinator: ObservableObject {
             return
         }
 
-        let match = RulesEngine.shared.match(
+        // Resolve the deterministic authority ladder (user rule → app catalog →
+        // site catalog → cached AI). A hit is authoritative: it sets the category
+        // and suppresses live AI, so known apps like editors are never re-judged.
+        let request = ClassificationRequest(
             bundleId: bundleId,
+            appName: appName,
             windowTitle: title,
-            siteLabel: browserContext.siteLabel
+            imageData: nil
+        )
+        let deterministic = Classifier.shared.deterministicMatch(
+            request: request,
+            browserContext: browserContext
         )
 
-        let siteLabel = match?.siteLabel ?? browserContext.siteLabel ?? lastBrowserContext.siteLabel
-        let sessionIdentity = isBrowser
-            ? SiteCatalog.sessionIdentity(bundleId: bundleId, context: browserContext)
-            : bundleId
+        let siteLabel = deterministic?.siteLabel ?? browserContext.siteLabel ?? lastBrowserContext.siteLabel
+        let sessionIdentity: String
+        if isBrowser {
+            sessionIdentity = SiteCatalog.sessionIdentity(bundleId: bundleId, context: browserContext)
+        } else if let editorIdentity = editorSessionIdentity(bundleId: bundleId, title: title) {
+            sessionIdentity = editorIdentity
+        } else {
+            sessionIdentity = bundleId
+        }
 
         await track("open session") {
             try await recorder.openSession(
                 bundleId: bundleId,
                 appName: appName,
                 windowTitle: title,
-                category: match?.category ?? .uncategorized,
-                categorySource: match?.source,
+                category: deterministic?.category ?? .uncategorized,
+                categorySource: deterministic?.source,
                 siteLabel: siteLabel,
                 sessionIdentity: sessionIdentity
             )
         }
 
-        if match == nil, AppSettings.shared.aiClassificationEnabled {
-            await classifyCurrentSession(app: app, title: title, force: isBrowser)
+        if deterministic == nil, AppSettings.shared.aiClassificationEnabled {
+            await classifyCurrentSession(app: app, title: title, force: isBrowser || EditorContext.isEditor(bundleId: bundleId))
         }
+    }
+
+    private func editorSessionIdentity(bundleId: String, title: String?) -> String? {
+        guard EditorContext.isEditor(bundleId: bundleId) else { return nil }
+        if let project = EditorContext.parseProject(bundleId: bundleId, windowTitle: title) {
+            return "editor:\(bundleId):project:\(project.lowercased())"
+        }
+        if let title = title?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty {
+            return "editor:\(bundleId):title:\(title.lowercased())"
+        }
+        return nil
     }
 
     private func classifyCurrentSession(
@@ -274,7 +368,60 @@ final class TrackingCoordinator: ObservableObject {
         }
     }
 
-    private func resolvedBrowserContext(title: String?, bundleId: String) -> ParsedBrowserContext {
+    private func normalizedTitle(_ title: String?) -> String? {
+        guard let trimmed = title?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
+            return nil
+        }
+        return trimmed
+    }
+
+    /// Reads the focused window title and folds the result into AX-health tracking.
+    private func readTitle(for app: NSRunningApplication) -> String? {
+        let title = normalizedTitle(WindowTitleReader.focusedWindowTitle(for: app))
+        updateAccessibilityHealth(title: title, app: app)
+        return title
+    }
+
+    private func updateAccessibilityHealth(title: String?, app: NSRunningApplication) {
+        // Hard signal: trust revoked at runtime.
+        guard WindowTitleReader.hasAccessibilityAccess() else {
+            setAccessibilityHealthy(false)
+            return
+        }
+        // Soft signal: a tracked app yielding no title for an extended run usually
+        // means the AX tree isn't reachable even though trust is nominally granted.
+        let bundleId = app.bundleIdentifier ?? ""
+        if title == nil, AppCatalog.shouldTrack(bundleId: bundleId) {
+            consecutiveTitleMisses += 1
+        } else {
+            consecutiveTitleMisses = 0
+        }
+        setAccessibilityHealthy(consecutiveTitleMisses < titleMissThreshold)
+    }
+
+    private func setAccessibilityHealthy(_ healthy: Bool) {
+        guard healthy != accessibilityHealthy else { return }
+        accessibilityHealthy = healthy
+        FlowlogLog.tracking("Accessibility health changed: \(healthy ? "healthy" : "degraded")")
+    }
+
+    private func resolvedBrowserContext(app: NSRunningApplication, title: String?, bundleId: String) -> ParsedBrowserContext {
+        // Prefer the canonical URL read straight from the AX web area; fall back to
+        // guessing the site from the window title only when the URL is unavailable.
+        if let url = WindowTitleReader.focusedURL(for: app) {
+            let fromURL = SiteCatalog.parse(urlString: url)
+            if fromURL.domain != nil {
+                let pageTitle = SiteCatalog.parse(windowTitle: title).pageTitle
+                let merged = ParsedBrowserContext(
+                    domain: fromURL.domain,
+                    siteLabel: fromURL.siteLabel,
+                    pageTitle: pageTitle ?? fromURL.pageTitle
+                )
+                lastBrowserContext = merged
+                return merged
+            }
+        }
+
         let parsed = SiteCatalog.parse(windowTitle: title)
         if parsed.domain != nil {
             lastBrowserContext = parsed
@@ -291,11 +438,16 @@ final class TrackingCoordinator: ObservableObject {
             }
             return merged
         }
-        if lastBrowserContext.domain != nil || lastBrowserContext.siteLabel != nil {
+        // Carry the previous site forward ONLY through a transient blank title
+        // (mid-navigation, no identity yet). A distinct page title means we've moved
+        // to a new page whose site we can't resolve — inheriting the old site here is
+        // what mislabeled unrelated pages (e.g. "Substack" stamped on "Track Package").
+        let hasOwnPageIdentity = !(parsed.pageTitle ?? "").trimmingCharacters(in: .whitespaces).isEmpty
+        if !hasOwnPageIdentity, lastBrowserContext.domain != nil || lastBrowserContext.siteLabel != nil {
             return ParsedBrowserContext(
                 domain: lastBrowserContext.domain,
                 siteLabel: lastBrowserContext.siteLabel,
-                pageTitle: parsed.pageTitle ?? lastBrowserContext.pageTitle
+                pageTitle: lastBrowserContext.pageTitle
             )
         }
         return parsed

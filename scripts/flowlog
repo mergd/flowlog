@@ -1,0 +1,381 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+db="${FLOWLOG_DB:-$HOME/Library/Application Support/Flowlog/productivity.sqlite}"
+
+usage() {
+  cat <<'USAGE'
+Usage: scripts/flowlog <command>
+
+Reporting:
+  summary       Today's tracked totals by category
+  apps          Today's app and site totals
+  contexts      Today's app/window/site contexts, including excluded time
+  projects      Today's editor work, grouped by project/file (what was worked on)
+  sessions      Today's latest sessions (relative times)
+  all-sessions  Today's latest sessions, including excluded time
+  recent [N]    Last N sessions across all days (default 40), relative times
+  worklogs      Stored AI work-log summaries
+
+Debugging data quality:
+  health        Coverage + consistency diagnostics (start here)
+  explain       Counted vs excluded time for today
+  gaps          Tracking gaps in today's timeline
+  screenshots   Sessions with stored screenshots
+
+Other:
+  db-path       Print the database path
+  menubar       Show, hide, or read menu bar icon setting
+  rules         Show classification rules
+  sql <query>   Run a read-only SQL query
+USAGE
+}
+
+require_db() {
+  if [[ ! -f "$db" ]]; then
+    echo "Flowlog database not found: $db" >&2
+    exit 1
+  fi
+}
+
+run_sql() {
+  require_db
+  sqlite3 -readonly -header -column "$db" "$1"
+}
+
+today_filter='"start" >= strftime("%Y-%m-%d %H:%M:%f", "now", "localtime", "start of day", "utc")'
+
+# --- SQL fragment helpers (stored times are UTC) ----------------------------
+
+# Relative "ago" string for a UTC datetime column.
+ago() {
+  local c="$1"
+  printf "case
+    when %s is null then ''
+    when (julianday('now')-julianday(%s))*1440 < 1 then 'just now'
+    when (julianday('now')-julianday(%s))*1440 < 60 then cast((julianday('now')-julianday(%s))*1440 as int)||'m ago'
+    when (julianday('now')-julianday(%s))*24 < 48 then cast((julianday('now')-julianday(%s))*24 as int)||'h ago'
+    else cast(julianday('now')-julianday(%s) as int)||'d ago'
+  end" "$c" "$c" "$c" "$c" "$c" "$c" "$c"
+}
+
+# Local wall-clock label for a UTC datetime column.
+at_local() { printf "strftime('%%m-%%d %%H:%%M', %s, 'localtime')" "$1"; }
+
+# Human duration from a seconds column.
+dur() {
+  local c="$1"
+  printf "case
+    when %s is null then ''
+    when %s < 60 then printf('%%ds', cast(%s as int))
+    when %s < 3600 then printf('%%dm%%02ds', cast(%s as int)/60, cast(%s as int)%%60)
+    else printf('%%dh%%02dm', cast(%s as int)/3600, (cast(%s as int)%%3600)/60)
+  end" "$c" "$c" "$c" "$c" "$c" "$c" "$c" "$c"
+}
+
+case "${1:-}" in
+  db-path)
+    echo "$db"
+    ;;
+  summary)
+    run_sql "
+      select
+        category,
+        count(*) as sessions,
+        $(dur 'sum(duration)') as time
+      from sessions
+      where $today_filter and idleExcluded = 0
+      group by category
+      order by sum(duration) desc;
+    "
+    echo
+    run_sql "
+      select
+        'TOTAL' as category,
+        count(*) as sessions,
+        $(dur 'sum(duration)') as time
+      from sessions
+      where $today_filter and idleExcluded = 0;
+    "
+    ;;
+  explain)
+    run_sql "
+      select
+        case idleExcluded when 0 then 'counted' else 'excluded' end as bucket,
+        count(*) as sessions,
+        $(dur 'sum(duration)') as time,
+        sum(screenshotId is not null) as screenshots
+      from sessions
+      where $today_filter
+      group by idleExcluded
+      order by idleExcluded;
+    "
+    echo
+    run_sql "
+      select
+        appName as app,
+        category,
+        coalesce(categorySource, '') as source,
+        case idleExcluded when 0 then 'counted' else 'excluded' end as bucket,
+        count(*) as sessions,
+        $(dur 'sum(duration)') as time
+      from sessions
+      where $today_filter
+      group by appName, category, source, idleExcluded
+      order by sum(duration) desc
+      limit 40;
+    "
+    ;;
+  apps)
+    run_sql "
+      select
+        appName as app,
+        bundleId as bundle,
+        category,
+        $(dur 'sum(duration)') as time,
+        count(*) as sessions
+      from sessions
+      where $today_filter and idleExcluded = 0
+      group by bundleId, appName, category
+      order by sum(duration) desc
+      limit 50;
+    "
+    ;;
+  contexts)
+    run_sql "
+      select
+        appName as app,
+        coalesce(nullif(siteLabel, ''), nullif(windowTitle, ''), '(no context)') as context,
+        category,
+        coalesce(categorySource, '') as source,
+        case idleExcluded when 0 then 'counted' else 'excluded' end as bucket,
+        count(*) as sessions,
+        $(dur 'sum(duration)') as time
+      from sessions
+      where $today_filter
+      group by appName, context, category, source, idleExcluded
+      order by sum(duration) desc
+      limit 80;
+    "
+    ;;
+  projects)
+    run_sql "
+      select
+        appName as app,
+        coalesce(nullif(windowTitle, ''), '(no title captured)') as worked_on,
+        category,
+        $(dur 'sum(duration)') as time,
+        count(*) as sessions,
+        $(ago 'max(start)') as last_seen
+      from sessions
+      where $today_filter
+        and (bundleId like 'com.todesktop.%'
+             or bundleId like 'com.microsoft.VSCode%'
+             or appName in ('Cursor', 'Code', 'Codex'))
+      group by app, worked_on, category
+      order by sum(duration) desc
+      limit 60;
+    "
+    ;;
+  sessions)
+    run_sql "
+      select
+        id,
+        appName as app,
+        category as cat,
+        $(dur 'duration') as time,
+        $(at_local 'start') as at,
+        $(ago 'start') as ago,
+        coalesce(nullif(siteLabel,''), nullif(windowTitle,''), '') as context
+      from sessions
+      where $today_filter and idleExcluded = 0
+      order by start desc
+      limit 50;
+    "
+    ;;
+  all-sessions)
+    run_sql "
+      select
+        id,
+        appName as app,
+        category as cat,
+        coalesce(categorySource, '') as src,
+        idleExcluded as excl,
+        $(dur 'duration') as time,
+        $(at_local 'start') as at,
+        $(ago 'start') as ago,
+        coalesce(nullif(siteLabel,''), nullif(windowTitle,''), '') as context
+      from sessions
+      where $today_filter
+      order by start desc
+      limit 100;
+    "
+    ;;
+  recent)
+    limit="${2:-40}"
+    run_sql "
+      select
+        id,
+        appName as app,
+        category as cat,
+        coalesce(categorySource, '') as src,
+        idleExcluded as excl,
+        $(dur 'duration') as time,
+        $(at_local 'start') as at,
+        $(ago 'start') as ago,
+        coalesce(nullif(siteLabel,''), nullif(windowTitle,''), '') as context
+      from sessions
+      order by start desc
+      limit $limit;
+    "
+    ;;
+  worklogs)
+    run_sql "
+      select
+        id,
+        $(at_local 'periodStart') as from_,
+        $(at_local 'periodEnd') as to_,
+        headline,
+        coalesce(primaryFocus,'') as focus,
+        productiveMinutes as prod_min,
+        distractingMinutes as distract_min,
+        $(ago 'createdAt') as created
+      from work_logs
+      order by periodStart desc
+      limit 30;
+    "
+    ;;
+  health)
+    echo "# Field coverage (all sessions)"
+    run_sql "
+      select metric, total, have, printf('%.0f%%', 100.0*have/total) as pct from (
+        select 'window title' as metric, count(*) total, sum(windowTitle is not null and windowTitle<>'') have, 1 as o from sessions
+        union all select 'site label', count(*), sum(siteLabel is not null and siteLabel<>''), 2 from sessions
+        union all select 'category source', count(*), sum(categorySource is not null), 3 from sessions
+        union all select 'classified (not uncat)', count(*), sum(category<>'uncategorized'), 4 from sessions
+        union all select 'screenshot', count(*), sum(screenshotId is not null), 5 from sessions
+      ) order by o;
+    "
+    echo
+    echo "# Window-title coverage by app (>=3 sessions)"
+    run_sql "
+      select appName as app, count(*) n,
+        sum(windowTitle is not null and windowTitle<>'') titled,
+        printf('%.0f%%', 100.0*sum(windowTitle is not null and windowTitle<>'')/count(*)) pct
+      from sessions group by appName having n>=3
+      order by n desc limit 25;
+    "
+    echo
+    echo "# Apps classified inconsistently (same app, multiple categories)"
+    run_sql "
+      select appName as app, count(distinct category) cats,
+        group_concat(distinct category) which, count(*) sessions
+      from sessions where category<>'uncategorized'
+      group by appName having cats>1 order by sessions desc limit 25;
+    "
+    echo
+    echo "# class+ source agreement (same app+category from different sources?)"
+    run_sql "
+      select appName as app, category,
+        group_concat(distinct coalesce(categorySource,'(none)')) sources, count(*) n
+      from sessions group by appName, category
+      having count(distinct categorySource)>1 order by n desc limit 20;
+    "
+    echo
+    echo "# Micro-sessions (< 5s) and dangling (no end)"
+    run_sql "
+      select
+        (select count(*) from sessions where duration < 5) as micro_lt5s,
+        (select count(*) from sessions where end is null) as dangling_no_end,
+        (select count(*) from sessions) as total;
+    "
+    ;;
+  gaps)
+    run_sql "
+      with t as (
+        select start, lag(end) over (order by start) as prev_end
+        from sessions
+        where $today_filter and idleExcluded = 0
+      )
+      select
+        $(at_local 'prev_end') as from_,
+        $(at_local 'start') as to_,
+        cast((julianday(start)-julianday(prev_end))*1440 as int) || 'm' as gap
+      from t
+      where prev_end is not null
+        and (julianday(start)-julianday(prev_end))*1440 >= 5
+      order by start;
+    "
+    ;;
+  screenshots)
+    run_sql "
+      select
+        s.id,
+        s.appName as app,
+        s.category,
+        $(dur 's.duration') as time,
+        $(ago 's.start') as ago,
+        s.screenshotId as screenshot,
+        '$HOME/Library/Application Support/Flowlog/screenshots/' || s.screenshotId || '.jpg' as path
+      from sessions s
+      where s.screenshotId is not null
+      order by s.start desc
+      limit 50;
+    "
+    ;;
+  menubar)
+    action="${2:-status}"
+    case "$action" in
+      show)
+        defaults write com.productivity.app showMenuBarIcon -bool true
+        echo "Menu bar icon enabled. Restart Flowlog to apply if it is currently hidden."
+        ;;
+      hide)
+        defaults write com.productivity.app showMenuBarIcon -bool false
+        echo "Menu bar icon disabled. Restart Flowlog to apply."
+        ;;
+      status)
+        value="$(defaults read com.productivity.app showMenuBarIcon 2>/dev/null || echo 1)"
+        if [[ "$value" == "0" ]]; then
+          echo "hidden"
+        else
+          echo "shown"
+        fi
+        ;;
+      *)
+        echo "Usage: scripts/flowlog menubar [show|hide|status]" >&2
+        exit 1
+        ;;
+    esac
+    ;;
+  rules)
+    run_sql "
+      select
+        id,
+        patternType as type,
+        pattern,
+        category,
+        coalesce(siteLabel, '') as site,
+        $(ago 'createdAt') as created
+      from rules
+      order by createdAt desc;
+    "
+    ;;
+  sql)
+    shift
+    query="${*:-}"
+    if [[ -z "$query" ]]; then
+      echo "Missing SQL query." >&2
+      exit 1
+    fi
+    run_sql "$query"
+    ;;
+  -h|--help|help|"")
+    usage
+    ;;
+  *)
+    echo "Unknown command: $1" >&2
+    usage >&2
+    exit 1
+    ;;
+esac

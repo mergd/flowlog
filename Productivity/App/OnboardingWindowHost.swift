@@ -2,25 +2,19 @@ import AppKit
 import SwiftUI
 
 @MainActor
-enum DashboardWindowHost {
+enum OnboardingWindowHost {
     private static var controller: NSWindowController?
 
     static func present(appState: AppState) {
         if controller == nil {
             let hostingController = NSHostingController(
-                rootView: DashboardWindow(appState: appState)
-                    .hiddenTitleBar(id: "dashboard")
+                rootView: OnboardingView(appState: appState)
+                    .hiddenTitleBar(id: "onboarding")
             )
             let window = NSWindow(contentViewController: hostingController)
-            WindowChrome.apply(to: window, id: "dashboard")
-            window.minSize = NSSize(
-                width: DashboardTheme.minWidth,
-                height: DashboardTheme.minHeight
-            )
-            window.setContentSize(NSSize(
-                width: DashboardTheme.defaultWidth,
-                height: DashboardTheme.defaultHeight
-            ))
+            WindowChrome.apply(to: window, id: "onboarding")
+            window.styleMask.remove(.resizable)
+            window.setContentSize(NSSize(width: 420, height: 368))
             window.center()
             window.isReleasedWhenClosed = false
             controller = NSWindowController(window: window)

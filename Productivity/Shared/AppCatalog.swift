@@ -2,7 +2,7 @@ import Foundation
 import AppKit
 
 enum AppCatalog {
-    static let minimumSessionDuration: TimeInterval = 12
+    static let minimumSessionDuration: TimeInterval = 5
 
     private static let ignoredBundleIds: Set<String> = [
         "com.productivity.app",
@@ -155,6 +155,6 @@ enum AppCatalog {
 
     static func classification(for bundleId: String) -> (category: ActivityCategory, source: ClassificationSource)? {
         guard let category = knownCategory(for: bundleId) else { return nil }
-        return (category, .cache)
+        return (category, .appCatalog)
     }
 }

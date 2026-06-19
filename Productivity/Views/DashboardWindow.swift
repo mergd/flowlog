@@ -30,13 +30,37 @@ struct DashboardWindow: View {
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: DashboardTheme.minWidth, minHeight: DashboardTheme.minHeight)
         .safeAreaInset(edge: .top, spacing: 0) {
-            if coordinator.isSnoozed { snoozeBanner }
+            VStack(spacing: 0) {
+                if coordinator.isSnoozed { snoozeBanner }
+                if !screenRecordingGranted { screenRecordingBanner }
+            }
         }
         .toolbar(removing: .title)
         .toolbarBackground(.hidden, for: .windowToolbar)
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .dashboardSurface()
         .agentTagOverlay()
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            screenRecordingGranted = Permissions.isScreenRecordingGranted()
+        }
+    }
+
+    private var screenRecordingBanner: some View {
+        HStack(spacing: 7) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.caption)
+                .foregroundStyle(.orange)
+            Text("Screen Recording is off — captures paused")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Button("Enable…") { SystemSettings.open(.screenCapture) }
+                .buttonStyle(.link)
+                .controlSize(.small)
+        }
+        .padding(.horizontal, DashboardTheme.hInset)
+        .padding(.vertical, 6)
+        .background(.bar)
     }
 
     private var snoozeBanner: some View {

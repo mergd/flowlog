@@ -10,7 +10,6 @@ enum BrowserDetector {
         "com.brave.Browser",
         "com.operasoftware.Opera",
         "com.vivaldi.Vivaldi",
-        "com.arc.browser",
     ]
 
     static func isBrowser(_ bundleId: String) -> Bool {

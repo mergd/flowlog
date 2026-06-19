@@ -24,6 +24,12 @@ final class RulesEngine: @unchecked Sendable {
         windowTitlePatterns.removeAll()
         domainPatterns.removeAll()
 
+        // Drop cached AI verdicts so an edited/deleted rule isn't shadowed by
+        // a stale guess until the next app restart.
+        aiWindowTitles.removeAll()
+        aiSiteLabels.removeAll()
+        aiDomainPatterns.removeAll()
+
         guard let rules = try? DatabaseManager.shared.allRules() else {
             FlowlogLog.tracking("Rules cache reload failed")
             return
@@ -48,32 +54,48 @@ final class RulesEngine: @unchecked Sendable {
         }
     }
 
-    func match(bundleId: String, windowTitle: String?, siteLabel: String?) -> ClassificationResult? {
+    /// Deterministic match against user-defined rules only. Highest authority.
+    func userRule(bundleId: String, windowTitle: String?, siteLabel: String?) -> ClassificationResult? {
         lock.lock()
         defer { lock.unlock() }
 
-        if let title = windowTitle?.lowercased(), !title.isEmpty,
-           let hit = aiWindowTitles[title] {
-            return hit
-        }
-        if let siteLabel,
-           let hit = exactRules["siteLabel:\(siteLabel.lowercased())"] ?? aiSiteLabels[siteLabel.lowercased()] {
+        if let siteLabel, let hit = exactRules["siteLabel:\(siteLabel.lowercased())"] {
             return hit
         }
         if let hit = exactRules["bundleId:\(bundleId.lowercased())"] { return hit }
 
-        if let title = windowTitle?.lowercased() {
+        if let title = windowTitle?.lowercased(), !title.isEmpty {
             for entry in windowTitlePatterns where title.contains(entry.pattern) {
                 return entry.result
             }
             for entry in domainPatterns where title.contains(entry.pattern) {
                 return entry.result
             }
+        }
+        return nil
+    }
+
+    /// Previously-resolved AI verdicts, reused. Lower authority than rules/catalogs.
+    func cachedAI(bundleId: String, windowTitle: String?, siteLabel: String?) -> ClassificationResult? {
+        lock.lock()
+        defer { lock.unlock() }
+
+        if let title = windowTitle?.lowercased(), !title.isEmpty, let hit = aiWindowTitles[title] {
+            return hit
+        }
+        if let siteLabel, let hit = aiSiteLabels[siteLabel.lowercased()] { return hit }
+        if let title = windowTitle?.lowercased(), !title.isEmpty {
             for entry in aiDomainPatterns where title.contains(entry.pattern) {
                 return entry.result
             }
         }
         return nil
+    }
+
+    /// Convenience: any non-live-AI deterministic match (user rule, then cached AI).
+    func match(bundleId: String, windowTitle: String?, siteLabel: String?) -> ClassificationResult? {
+        userRule(bundleId: bundleId, windowTitle: windowTitle, siteLabel: siteLabel)
+            ?? cachedAI(bundleId: bundleId, windowTitle: windowTitle, siteLabel: siteLabel)
     }
 
     func bundleHeuristic(bundleId: String) -> ClassificationResult? {
@@ -91,7 +113,7 @@ final class RulesEngine: @unchecked Sendable {
         guard let (category, label, source) = SiteCatalog.classification(for: domain) else { return nil }
         return ClassificationResult(
             category: category,
-            siteLabel: siteLabel ?? label,
+            siteLabel: label,  // prefer the catalog's clean name for consistent rounding
             confidence: 0.9,
             reason: "Known site",
             source: source
@@ -106,18 +128,26 @@ final class RulesEngine: @unchecked Sendable {
     ) {
         lock.lock()
         defer { lock.unlock() }
+        // Reuse of this verdict is a cache hit, not a fresh AI call — record that.
+        let cached = ClassificationResult(
+            category: result.category,
+            siteLabel: result.siteLabel,
+            confidence: result.confidence,
+            reason: result.reason,
+            source: .cachedAI
+        )
         if let title = windowTitle?.lowercased(), !title.isEmpty {
-            aiWindowTitles[title] = result
+            aiWindowTitles[title] = cached
         }
         if let siteLabel {
-            aiSiteLabels[siteLabel.lowercased()] = result
+            aiSiteLabels[siteLabel.lowercased()] = cached
         }
         if let domain {
             let normalized = domain.lowercased()
             if let index = aiDomainPatterns.firstIndex(where: { $0.pattern == normalized }) {
-                aiDomainPatterns[index] = (pattern: normalized, result: result)
+                aiDomainPatterns[index] = (pattern: normalized, result: cached)
             } else {
-                aiDomainPatterns.append((pattern: normalized, result: result))
+                aiDomainPatterns.append((pattern: normalized, result: cached))
             }
         }
     }
@@ -128,18 +158,39 @@ final class RulesEngine: @unchecked Sendable {
         category: ActivityCategory,
         siteLabel: String? = nil
     ) throws {
-        var rule = Rule(
-            id: nil,
-            patternType: patternType.rawValue,
-            pattern: pattern,
-            category: category.rawValue,
-            siteLabel: siteLabel,
-            createdAt: Date()
-        )
+        let normalized = RuleValidator.normalizedPattern(pattern, type: patternType)
+        guard RuleValidator.isValid(pattern: normalized, type: patternType) else { return }
+
+        let storedSiteLabel: String?
+        if patternType == .siteLabel {
+            storedSiteLabel = siteLabel ?? pattern
+        } else {
+            storedSiteLabel = siteLabel
+        }
+
         try DatabaseManager.shared.queue.write { db in
+            if var existing = try Rule
+                .filter(Rule.Columns.patternType == patternType.rawValue)
+                .filter(Rule.Columns.pattern == normalized)
+                .fetchOne(db) {
+                existing.category = category.rawValue
+                existing.siteLabel = storedSiteLabel
+                try existing.update(db)
+                return
+            }
+
+            var rule = Rule(
+                id: nil,
+                patternType: patternType.rawValue,
+                pattern: normalized,
+                category: category.rawValue,
+                siteLabel: storedSiteLabel,
+                createdAt: Date()
+            )
             try rule.insert(db)
         }
         reloadCache()
+        NotificationCenter.default.post(name: .productivityDataDidChange, object: nil)
     }
 
     func deleteRule(id: Int64) throws {
@@ -147,5 +198,22 @@ final class RulesEngine: @unchecked Sendable {
             _ = try Rule.deleteOne(db, key: id)
         }
         reloadCache()
+        NotificationCenter.default.post(name: .productivityDataDidChange, object: nil)
+    }
+
+    @discardableResult
+    func deleteInvalidRules() throws -> Int {
+        let invalid = try DatabaseManager.shared.allRules().filter { !RuleValidator.isValid($0) }
+        guard !invalid.isEmpty else { return 0 }
+        try DatabaseManager.shared.queue.write { db in
+            for rule in invalid {
+                if let id = rule.id {
+                    _ = try Rule.deleteOne(db, key: id)
+                }
+            }
+        }
+        reloadCache()
+        NotificationCenter.default.post(name: .productivityDataDidChange, object: nil)
+        return invalid.count
     }
 }

@@ -6,27 +6,20 @@ struct DashboardEmptyState: View {
     let message: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(spacing: 8) {
             Image(systemName: symbol)
-                .font(.system(size: 32, weight: .light))
-                .foregroundStyle(.tertiary)
-                .symbolRenderingMode(.hierarchical)
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text(title)
-                    .font(.title3.weight(.semibold))
-
-                Text(message)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .lineSpacing(2)
-            }
+                .font(.system(size: 30, weight: .regular))
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 2)
+            Text(title)
+                .font(.headline)
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
         }
-        .frame(maxWidth: 360, alignment: .leading)
-        .padding(.horizontal, 36)
-        .padding(.top, 40)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(.horizontal, 40)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -50,8 +43,8 @@ struct DashboardDetailHeader: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 36)
-        .padding(.top, 28)
-        .padding(.bottom, 8)
+        .padding(.horizontal, DashboardTheme.hInset)
+        .padding(.top, 16)
+        .padding(.bottom, 6)
     }
 }

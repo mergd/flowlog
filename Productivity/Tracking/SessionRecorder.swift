@@ -32,7 +32,7 @@ actor SessionRecorder {
             idleExcluded: false,
             category: category.rawValue,
             categorySource: categorySource?.rawValue,
-            siteLabel: siteLabel,
+            siteLabel: SiteCatalog.sanitizedSiteLabel(siteLabel, bundleId: bundleId, appName: appName),
             screenshotId: screenshotId
         )
 
@@ -57,8 +57,12 @@ actor SessionRecorder {
             if var session = try Session.fetchOne(db, key: id) {
                 session.category = category.rawValue
                 session.categorySource = source.rawValue
-                if let siteLabel, !siteLabel.isEmpty {
-                    session.siteLabel = siteLabel
+                if let cleaned = SiteCatalog.sanitizedSiteLabel(
+                    siteLabel,
+                    bundleId: session.bundleId,
+                    appName: session.appName
+                ) {
+                    session.siteLabel = cleaned
                 }
                 if let screenshotId { session.screenshotId = screenshotId }
                 try session.update(db)
@@ -76,7 +80,13 @@ actor SessionRecorder {
         try await DatabaseManager.shared.queue.write { db in
             if var session = try Session.fetchOne(db, key: id) {
                 if let windowTitle { session.windowTitle = windowTitle }
-                if let siteLabel, !siteLabel.isEmpty { session.siteLabel = siteLabel }
+                if let cleaned = SiteCatalog.sanitizedSiteLabel(
+                    siteLabel,
+                    bundleId: session.bundleId,
+                    appName: session.appName
+                ) {
+                    session.siteLabel = cleaned
+                }
                 if let category { session.category = category.rawValue }
                 if let categorySource { session.categorySource = categorySource.rawValue }
                 try session.update(db)
@@ -101,6 +111,9 @@ actor SessionRecorder {
                 let end = Date()
                 session.end = end
                 session.duration = end.timeIntervalSince(session.start)
+                // Brief slices are no longer excluded as "noise" — bouncing between
+                // apps is the normal texture of attention and folds into blocks.
+                // Only genuinely untracked apps (and explicit idle) are excluded.
                 if markIdleExcluded || !AppCatalog.shouldTrack(bundleId: session.bundleId) {
                     session.idleExcluded = true
                 }

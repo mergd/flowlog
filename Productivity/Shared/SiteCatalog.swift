@@ -52,6 +52,10 @@ enum SiteCatalog {
         "linkedin": "linkedin.com",
         "chatgpt": "chatgpt.com",
         "claude": "claude.ai",
+        "the new york times": "nytimes.com",
+        "the washington post": "washingtonpost.com",
+        "the verge": "theverge.com",
+        "bloomberg": "bloomberg.com",
     ]
 
     private static let knownSites: [String: (label: String, category: ActivityCategory)] = [
@@ -104,6 +108,15 @@ enum SiteCatalog {
         "twitch.tv": ("Twitch", .distracting),
         "news.ycombinator.com": ("Hacker News", .neutral),
         "linkedin.com": ("LinkedIn", .neutral),
+
+        // News
+        "nytimes.com": ("The New York Times", .neutral),
+        "washingtonpost.com": ("The Washington Post", .neutral),
+        "theverge.com": ("The Verge", .neutral),
+        "bloomberg.com": ("Bloomberg", .neutral),
+        "wsj.com": ("The Wall Street Journal", .neutral),
+        "substack.com": ("Substack", .neutral),
+        "medium.com": ("Medium", .neutral),
     ]
 
     static func siteKey(domain: String?, siteLabel: String?) -> String {
@@ -122,8 +135,26 @@ enum SiteCatalog {
     static func domainChanged(from old: ParsedBrowserContext, to new: ParsedBrowserContext) -> Bool {
         let oldDomain = old.domain.map(normalizeDomain)
         let newDomain = new.domain.map(normalizeDomain)
-        if oldDomain == nil, newDomain == nil { return false }
+        guard let oldDomain, let newDomain else { return false }
         return oldDomain != newDomain
+    }
+
+    private static let junkSiteLabels: Set<String> = [
+        "unknown", "n/a", "na", "none", "uncategorized", "untitled", "null", "undefined",
+    ]
+
+    static func sanitizedSiteLabel(_ label: String?, bundleId: String, appName: String) -> String? {
+        guard let trimmed = label?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
+            return nil
+        }
+        let lower = trimmed.lowercased()
+        if junkSiteLabels.contains(lower) { return nil }
+        if lower == appName.lowercased() { return nil }
+        if EditorContext.isEditor(bundleId: bundleId) { return nil }
+        if !BrowserDetector.isBrowser(bundleId), !EditorContext.isEditor(bundleId: bundleId) {
+            if trimmed.count < 3 { return nil }
+        }
+        return trimmed
     }
 
     static func displayTitle(for session: Session) -> String {
@@ -141,30 +172,40 @@ enum SiteCatalog {
         siteLabel: String?,
         windowTitle: String?
     ) -> String {
-        if EditorContext.isEditor(bundleId: bundleId),
-           let file = EditorContext.parseFileName(windowTitle: windowTitle) {
-            return file
+        if EditorContext.isEditor(bundleId: bundleId) {
+            if let file = EditorContext.parseFileName(windowTitle: windowTitle) {
+                return file
+            }
+            if let project = EditorContext.parseProject(bundleId: bundleId, windowTitle: windowTitle) {
+                return project
+            }
+            return appName
         }
 
-        if let siteLabel,
-           !siteLabel.isEmpty,
-           siteLabel.lowercased() != appName.lowercased() {
-            return siteLabel
+        let cleanedLabel = sanitizedSiteLabel(siteLabel, bundleId: bundleId, appName: appName)
+        if let cleanedLabel {
+            return cleanedLabel
         }
 
         let context = parse(windowTitle: windowTitle)
+
+        if BrowserDetector.isBrowser(bundleId) {
+            // Round to the site. Prefer the domain (and its friendly catalog name)
+            // over the page title so we never show a full article headline as the label.
+            if let domain = context.domain {
+                return knownSites[normalizeDomain(domain)]?.label ?? domain
+            }
+            if let label = context.siteLabel, !isBrowserOnlyTitle(label) {
+                return label
+            }
+            return appName  // unknown site → the browser name, not the article
+        }
+
         if let label = context.siteLabel, !isBrowserOnlyTitle(label) {
             return label
         }
         if let pageTitle = context.pageTitle {
             return pageTitle
-        }
-        if let domain = context.domain {
-            return knownSites[normalizeDomain(domain)]?.label ?? domain
-        }
-        if EditorContext.isEditor(bundleId: bundleId),
-           let project = EditorContext.parseProject(bundleId: bundleId, windowTitle: windowTitle) {
-            return project
         }
         return appName
     }
@@ -205,17 +246,11 @@ enum SiteCatalog {
         let context = parse(windowTitle: windowTitle)
 
         if BrowserDetector.isBrowser(bundleId) {
-            if appName.lowercased() != title.lowercased() {
-                return appName
-            }
+            // The title is the rounded site; the page/article headline is the detail.
             if let pageTitle = context.pageTitle,
-               pageTitle.lowercased() != title.lowercased() {
+               pageTitle.lowercased() != title.lowercased(),
+               !isBrowserOnlyTitle(pageTitle) {
                 return pageTitle
-            }
-            if let domain = context.domain,
-               title.lowercased() != domain.lowercased(),
-               knownSites[normalizeDomain(domain)]?.label.lowercased() != title.lowercased() {
-                return domain
             }
             return nil
         }
@@ -241,16 +276,45 @@ enum SiteCatalog {
         return ParsedBrowserContext(domain: domain, siteLabel: siteLabel, pageTitle: pageTitle)
     }
 
+    /// Build browser context from a canonical URL read off the AX web area.
+    /// Only the host is retained — full URLs, paths, and query strings are never
+    /// persisted. Accepts bare hosts ("github.com") from the omnibox fallback.
+    static func parse(urlString: String) -> ParsedBrowserContext {
+        let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return .empty }
+        let candidate = trimmed.contains("://") ? trimmed : "https://\(trimmed)"
+        guard let comps = URLComponents(string: candidate),
+              let scheme = comps.scheme?.lowercased(),
+              scheme == "http" || scheme == "https",
+              let host = comps.host, !host.isEmpty else { return .empty }
+        let domain = normalizeDomain(host)
+        let siteLabel = friendlySiteLabel(domain: domain, pageTitle: nil, windowTitle: trimmed)
+        return ParsedBrowserContext(domain: domain, siteLabel: siteLabel, pageTitle: nil)
+    }
+
     static func shouldTrack(domain: String?, pageTitle: String?, windowTitle: String?) -> Bool {
         let title = (windowTitle ?? pageTitle ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         if title.isEmpty { return false }
-        if ignoredTitles.contains(title.lowercased()) { return false }
-        if title.lowercased().hasPrefix("chrome://") || title.lowercased().hasPrefix("about:") { return false }
+        let lower = title.lowercased()
+        // The window title carries the browser suffix + profile ("New Tab - Google
+        // Chrome - William"), so match ignored titles by segment, not whole-string.
+        let segments = Set(lower
+            .components(separatedBy: CharacterSet(charactersIn: "-–—|·"))
+            .map { $0.trimmingCharacters(in: .whitespaces) })
+        if ignoredTitles.contains(lower) || !ignoredTitles.isDisjoint(with: segments) { return false }
+        if lower.contains("incognito") || lower.contains("private browsing") { return false }
+        if lower.hasPrefix("chrome://") || lower.hasPrefix("about:") { return false }
         if domain == nil, isBrowserOnlyTitle(title) { return false }
         return true
     }
 
     static func domain(from text: String) -> String? {
+        // If this is a real URL, take the host directly — never scrape a domain
+        // out of a query string (e.g. ?utm_source=substack.com on a bodyspec URL).
+        if text.contains("://"),
+           let host = URLComponents(string: text.trimmingCharacters(in: .whitespaces))?.host, !host.isEmpty {
+            return normalizeDomain(host)
+        }
         if let urlDomain = OCRPreprocessor.extractDomain(from: text) {
             return normalizeDomain(urlDomain)
         }
@@ -260,8 +324,14 @@ enum SiteCatalog {
             return normalizeDomain(String(match.1))
         }
 
-        let lower = text.lowercased()
-        for (hint, domain) in titleDomainHints where lower.contains(hint) {
+        // Title hints are a last resort (we prefer the real URL). Match a hint only
+        // when it's a *delimited segment* of the title — i.e. the title's site marker
+        // ("Subscriptions — YouTube") — never an arbitrary content mention. A Reddit
+        // thread titled "…Same Cursor. Same Claude…" must NOT resolve to claude.ai.
+        let segments = text.lowercased()
+            .components(separatedBy: CharacterSet(charactersIn: "-–—|·:"))
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+        for (hint, domain) in titleDomainHints where segments.contains(hint) {
             return domain
         }
         return nil
@@ -277,26 +347,23 @@ enum SiteCatalog {
     }
 
     static func friendlySiteLabel(domain: String?, pageTitle: String?, windowTitle: String) -> String? {
-        if let domain {
-            let normalized = normalizeDomain(domain)
-            if let label = knownSites[normalized]?.label { return label }
-            if let parent = parentDomain(for: normalized), let label = knownSites[parent]?.label { return label }
-            return normalized
-        }
-        if let pageTitle, !pageTitle.isEmpty, !isBrowserOnlyTitle(pageTitle) {
-            return pageTitle
-        }
-        let parsed = strippedPageTitle(from: windowTitle)
-        return parsed?.isEmpty == false ? parsed : nil
+        // A site label must identify a *site*, not a page. Without a domain we
+        // can't name the site, so return nil rather than promoting the article
+        // headline to a site label (the page title still shows as a subtitle).
+        guard let domain else { return nil }
+        let normalized = normalizeDomain(domain)
+        if let label = knownSites[normalized]?.label { return label }
+        if let parent = parentDomain(for: normalized), let label = knownSites[parent]?.label { return label }
+        return normalized
     }
 
     static func classification(for domain: String) -> (category: ActivityCategory, label: String, source: ClassificationSource)? {
         let normalized = normalizeDomain(domain)
         if let entry = knownSites[normalized] {
-            return (entry.category, entry.label, .cache)
+            return (entry.category, entry.label, .siteCatalog)
         }
         if let parent = parentDomain(for: normalized), let entry = knownSites[parent] {
-            return (entry.category, entry.label, .cache)
+            return (entry.category, entry.label, .siteCatalog)
         }
         return nil
     }
@@ -319,10 +386,41 @@ enum SiteCatalog {
         return ["google chrome", "chrome", "safari", "arc", "firefox", "microsoft edge", "brave", "opera", "vivaldi"].contains(lower)
     }
 
+    /// Domains that are really the same site under different hostnames.
+    private static let domainAliases: [String: String] = [
+        "twitter.com": "x.com",
+        "mobile.twitter.com": "x.com",
+        "m.youtube.com": "youtube.com",
+        "old.reddit.com": "reddit.com",
+    ]
+
     private static func normalizeDomain(_ domain: String) -> String {
         var value = domain.lowercased()
         if value.hasPrefix("www.") { value = String(value.dropFirst(4)) }
-        return value
+        return domainAliases[value] ?? value
+    }
+
+    /// Public canonical form of a domain: lowercased, `www.` stripped, and aliases
+    /// applied (so `twitter.com` → `x.com`). Use for favicon lookups and display.
+    static func canonicalDomain(_ domain: String?) -> String? {
+        guard let domain else { return nil }
+        let trimmed = domain.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return nil }
+        return normalizeDomain(trimmed)
+    }
+
+    /// Best-effort domain for a site *label* (e.g. "Google" → "google.com"), used
+    /// when the live URL wasn't readable but we still recognize the site by name.
+    /// Lets favicons resolve from a label alone.
+    static func inferredDomain(forLabel label: String?) -> String? {
+        guard let label = label?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !label.isEmpty else { return nil }
+        let lower = label.lowercased()
+        if let hit = knownSites.first(where: { $0.value.label.lowercased() == lower })?.key {
+            return hit
+        }
+        if let hint = titleDomainHints[lower] { return hint }
+        return nil
     }
 
     private static func parentDomain(for domain: String) -> String? {

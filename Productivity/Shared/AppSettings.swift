@@ -27,6 +27,12 @@ final class AppSettings {
         set { defaults.set(newValue, forKey: "aggressiveRedaction") }
     }
 
+    /// Surfaces technical details (bundle identifiers, raw sources) in the UI.
+    var developerMode: Bool {
+        get { defaults.bool(forKey: "developerMode") }
+        set { defaults.set(newValue, forKey: "developerMode") }
+    }
+
     var hasCompletedOnboarding: Bool {
         get { defaults.bool(forKey: "hasCompletedOnboarding") }
         set { defaults.set(newValue, forKey: "hasCompletedOnboarding") }
@@ -52,6 +58,14 @@ final class AppSettings {
             return defaults.bool(forKey: "loginItemEnabled")
         }
         set { defaults.set(newValue, forKey: "loginItemEnabled") }
+    }
+
+    var showMenuBarIcon: Bool {
+        get {
+            if defaults.object(forKey: "showMenuBarIcon") == nil { return true }
+            return defaults.bool(forKey: "showMenuBarIcon")
+        }
+        set { defaults.set(newValue, forKey: "showMenuBarIcon") }
     }
 
     var nudgesEnabled: Bool {

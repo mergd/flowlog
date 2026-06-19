@@ -2,10 +2,13 @@ import SwiftUI
 
 enum DashboardTheme {
     static let surface = Color(nsColor: .windowBackgroundColor)
-    static let defaultWidth: CGFloat = 720
-    static let defaultHeight: CGFloat = 400
-    static let minWidth: CGFloat = 640
+    static let defaultWidth: CGFloat = 680
+    static let defaultHeight: CGFloat = 420
+    static let minWidth: CGFloat = 560
     static let minHeight: CGFloat = 320
+
+    /// Standard horizontal content inset (macOS HIG ~20pt).
+    static let hInset: CGFloat = 20
 }
 
 enum CategoryColors {
@@ -54,17 +57,38 @@ extension View {
     }
 }
 
+extension Notification.Name {
+    static let productivityDataDidChange = Notification.Name("productivityDataDidChange")
+}
+
 struct CategoryPill: View {
     let category: ActivityCategory
 
     var body: some View {
-        Text(category.displayName)
-            .font(.caption2.weight(.medium))
+        Label {
+            Text(category.displayName)
+        } icon: {
+            Image(systemName: category.iconName)
+        }
+        .labelStyle(.titleAndIcon)
+        .font(.caption2.weight(.medium))
+        .foregroundStyle(CategoryColors.color(for: category))
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(CategoryColors.color(for: category).opacity(0.14))
+        .clipShape(Capsule())
+    }
+}
+
+/// Small category glyph in its category color — for compact rows/legends.
+struct CategoryIcon: View {
+    let category: ActivityCategory
+    var size: CGFloat = 12
+
+    var body: some View {
+        Image(systemName: category.iconName)
+            .font(.system(size: size, weight: .semibold))
             .foregroundStyle(CategoryColors.color(for: category))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(CategoryColors.color(for: category).opacity(0.14))
-            .clipShape(Capsule())
     }
 }
 

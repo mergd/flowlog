@@ -5,6 +5,7 @@ import SwiftUI
 struct ProductivityApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var appState = AppState.shared
+    @AppStorage("showMenuBarIcon") private var showMenuBarIcon = true
 
     var body: some Scene {
         Window("", id: "dashboard") {
@@ -16,8 +17,20 @@ struct ProductivityApp: App {
         .windowStyle(.hiddenTitleBar)
         .defaultLaunchBehavior(.suppressed)
         .commands {
-            CommandGroup(after: .appInfo) {
-                WindowRegistration()
+            CommandGroup(replacing: .newItem) {
+                Button("Open Flowlog") {
+                    WindowPresenter.openDashboard()
+                }
+                .keyboardShortcut("o", modifiers: .command)
+            }
+
+            CommandMenu("Setup") {
+                Button("Show Setup") {
+                    AppSettings.shared.hasCompletedOnboarding = false
+                    AppSettings.shared.onboardingResumeStep = nil
+                    AppState.shared.syncOnboardingState()
+                    AppState.shared.presentOnboarding()
+                }
             }
         }
 
@@ -31,13 +44,13 @@ struct ProductivityApp: App {
         .windowStyle(.hiddenTitleBar)
         .defaultLaunchBehavior(appState.showOnboarding ? .presented : .suppressed)
 
-        MenuBarExtra {
+        MenuBarExtra(isInserted: $showMenuBarIcon) {
             MenuBarPanel(appState: appState)
                 .background(WindowRegistration())
         } label: {
             MenuBarLabel()
         }
-        .menuBarExtraStyle(.menu)
+        .menuBarExtraStyle(.window)
 
         Settings {
             SettingsView()
@@ -60,9 +73,36 @@ struct ProductivityApp: App {
 }
 
 private struct MenuBarLabel: View {
+    @ObservedObject private var coordinator = TrackingCoordinator.shared
+
     var body: some View {
-        Image("MenuBarIcon")
+        ring
+            .accessibilityLabel(coordinator.isSnoozed ? "Flowlog — paused" : "Flowlog")
+    }
+
+    @ViewBuilder
+    private var ring: some View {
+        let base = Image("MenuBarIcon")
             .renderingMode(.template)
-            .accessibilityLabel("Flowlog")
+            .resizable()
+            .scaledToFit()
+
+        if coordinator.isSnoozed {
+            // The "zzz" glyph is ~3× wider than a single letter, so it won't fit as a
+            // corner badge inside an 18pt icon (it gets clipped, and blends into the
+            // logo at the same menu-bar tint). Widen the item and set it beside a
+            // dimmed logo so the whole sleep glyph is legible.
+            HStack(spacing: 1.5) {
+                base
+                    .opacity(0.45)
+                    .frame(width: 16, height: 16)
+                Image(systemName: "zzz")
+                    .renderingMode(.template)
+                    .font(.system(size: 9, weight: .bold))
+            }
+            .frame(height: 18)
+        } else {
+            base.frame(width: 18, height: 18)
+        }
     }
 }

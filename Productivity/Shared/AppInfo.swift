@@ -28,4 +28,10 @@ enum AppInfo {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }
+
+    static func faviconsDirectory() throws -> URL {
+        let dir = try applicationSupportDirectory().appendingPathComponent("favicons", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
 }

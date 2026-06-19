@@ -45,6 +45,7 @@
 		AC6DD65C631862C60C475ABB /* ProductivityApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/App/ProductivityApp.swift"; sourceTree = SOURCE_ROOT; };
 		C3D4E5F60718293A4B5C6D7E /* WindowPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/App/WindowPresenter.swift"; sourceTree = SOURCE_ROOT; };
 		D4E5F60718293A4B5C6D7F0 /* DashboardWindowHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/App/DashboardWindowHost.swift"; sourceTree = SOURCE_ROOT; };
+		D4E5F60718293A4B5C6D7F4 /* OnboardingWindowHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/App/OnboardingWindowHost.swift"; sourceTree = SOURCE_ROOT; };
 		D4E5F60718293A4B5C6D7F2 /* WindowChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/App/WindowChrome.swift"; sourceTree = SOURCE_ROOT; };
 		L0G1N1T3M4N4G3R5F1L3E0A /* LoginItemManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/App/LoginItemManager.swift"; sourceTree = SOURCE_ROOT; };
 		C1A5S51F1C4T10NTYP35F1L3 /* ClassificationTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Classification/ClassificationTypes.swift"; sourceTree = SOURCE_ROOT; };
@@ -81,9 +82,12 @@
 		70F2F35F8E8CCCCD6589B531 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Views/OnboardingView.swift"; sourceTree = SOURCE_ROOT; };
 		DCD9E95BC1055212D37EAB4A /* RulesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Views/RulesView.swift"; sourceTree = SOURCE_ROOT; };
 		9B88F337C106AF9DBAB94B00 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Views/SettingsView.swift"; sourceTree = SOURCE_ROOT; };
-		B3194D87A84723F1E311B61D /* TimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Views/TimelineView.swift"; sourceTree = SOURCE_ROOT; };
-		8DB2794100F1660CCCF193F9 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Views/TodayView.swift"; sourceTree = SOURCE_ROOT; };
-		C4L3ND4RV13W5F1L3E0A1 /* CalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Views/CalendarView.swift"; sourceTree = SOURCE_ROOT; };
+		D4YV13W5F1L3E0A1B2 /* DayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Views/DayView.swift"; sourceTree = SOURCE_ROOT; };
+		S3SSR0WV13W5F1L3E0A1 /* SessionRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Views/SessionRowView.swift"; sourceTree = SOURCE_ROOT; };
+		S3SSR3CL4SS1FY5H33T1 /* SessionReclassifySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Views/SessionReclassifySheet.swift"; sourceTree = SOURCE_ROOT; };
+		S3SSR3H0T5HUMB5F1L3E1 /* SessionScreenshotThumb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Views/SessionScreenshotThumb.swift"; sourceTree = SOURCE_ROOT; };
+		S3SSR3M3MB3R5C0P3F1L /* SessionRememberScope.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Classification/SessionRememberScope.swift"; sourceTree = SOURCE_ROOT; };
+		RUL3V4L1D4T0R5F1L3E1 /* RuleValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Classification/RuleValidator.swift"; sourceTree = SOURCE_ROOT; };
 		0848FADA126523A47494DEB6 /* NudgeEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Nudges/NudgeEngine.swift"; sourceTree = SOURCE_ROOT; };
 		A1C0N1C0A55E7C4A7A1C0N1D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Productivity/Assets.xcassets"; sourceTree = SOURCE_ROOT; };
 		F10WLOG1C0NA55E7C4A7A1D /* Flowlog.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = "Productivity/Flowlog.icon"; sourceTree = SOURCE_ROOT; };
@@ -97,6 +101,7 @@
 		84D85FE8C352A02F5A9216B7 /* ProductivityApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6DD65C631862C60C475ABB /* ProductivityApp.swift */; };
 		D4E5F60718293A4B5C6D7E8F /* WindowPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3D4E5F60718293A4B5C6D7E /* WindowPresenter.swift */; };
 		D4E5F60718293A4B5C6D7F1 /* DashboardWindowHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F60718293A4B5C6D7F0 /* DashboardWindowHost.swift */; };
+		D4E5F60718293A4B5C6D7F5 /* OnboardingWindowHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F60718293A4B5C6D7F4 /* OnboardingWindowHost.swift */; };
 		D4E5F60718293A4B5C6D7F3 /* WindowChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F60718293A4B5C6D7F2 /* WindowChrome.swift */; };
 		L0G1N1T3M4N4G3R5F1L3E0B /* LoginItemManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = L0G1N1T3M4N4G3R5F1L3E0A /* LoginItemManager.swift */; };
 		C1A5S51F1C4T10NTYP35F1L4 /* ClassificationTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A5S51F1C4T10NTYP35F1L3 /* ClassificationTypes.swift */; };
@@ -133,18 +138,23 @@
 		3EB864E2B982E1190079CFD6 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70F2F35F8E8CCCCD6589B531 /* OnboardingView.swift */; };
 		824EED3DFA100C70EBB98122 /* RulesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCD9E95BC1055212D37EAB4A /* RulesView.swift */; };
 		8F6EE59AD59FC681C25712CF /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B88F337C106AF9DBAB94B00 /* SettingsView.swift */; };
-		F23E661A2E74A43AD29B457F /* TimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3194D87A84723F1E311B61D /* TimelineView.swift */; };
-		A428DDB374850F5B7983B6B3 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DB2794100F1660CCCF193F9 /* TodayView.swift */; };
-		C4L3ND4RV13W5F1L3E0A2 /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4L3ND4RV13W5F1L3E0A1 /* CalendarView.swift */; };
+		D4YV13W5F1L3E0A1B3 /* DayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4YV13W5F1L3E0A1B2 /* DayView.swift */; };
+		S3SSR0WV13W5F1L3E0A2 /* SessionRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = S3SSR0WV13W5F1L3E0A1 /* SessionRowView.swift */; };
+		S3SSR3CL4SS1FY5H33T2 /* SessionReclassifySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = S3SSR3CL4SS1FY5H33T1 /* SessionReclassifySheet.swift */; };
+		S3SSR3H0T5HUMB5F1L3E2 /* SessionScreenshotThumb.swift in Sources */ = {isa = PBXBuildFile; fileRef = S3SSR3H0T5HUMB5F1L3E1 /* SessionScreenshotThumb.swift */; };
+		S3SSR3M3MB3R5C0P3F2 /* SessionRememberScope.swift in Sources */ = {isa = PBXBuildFile; fileRef = S3SSR3M3MB3R5C0P3F1L /* SessionRememberScope.swift */; };
+		RUL3V4L1D4T0R5F1L3E2 /* RuleValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = RUL3V4L1D4T0R5F1L3E1 /* RuleValidator.swift */; };
 		B78C80E496BC607037332CD4 /* NudgeEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0848FADA126523A47494DEB6 /* NudgeEngine.swift */; };
 		A1C0N1C0A55E7C4A7A1C0N1C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1C0N1C0A55E7C4A7A1C0N1D /* Assets.xcassets */; };
 		F10WLOG1C0NA55E7C4A7A1E /* Flowlog.icon in Resources */ = {isa = PBXBuildFile; fileRef = F10WLOG1C0NA55E7C4A7A1D /* Flowlog.icon */; };
 		334F88284D60777BDEE67455 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 43823E14BB3DDA5E591B59F8 /* GRDB */; };
+		AE71B0AA0000000000000A01 /* AgentTag in Frameworks */ = {isa = PBXBuildFile; productRef = AE71B0AA0000000000000A02 /* AgentTag */; };
 		4F6F5CC3FCCF73F75AE9CCF4 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				334F88284D60777BDEE67455 /* GRDB in Frameworks */,
+				AE71B0AA0000000000000A01 /* AgentTag in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -161,6 +171,7 @@
 				84D85FE8C352A02F5A9216B7 /* ProductivityApp.swift in Sources */,
 				D4E5F60718293A4B5C6D7E8F /* WindowPresenter.swift in Sources */,
 				D4E5F60718293A4B5C6D7F1 /* DashboardWindowHost.swift in Sources */,
+				D4E5F60718293A4B5C6D7F5 /* OnboardingWindowHost.swift in Sources */,
 				D4E5F60718293A4B5C6D7F3 /* WindowChrome.swift in Sources */,
 				L0G1N1T3M4N4G3R5F1L3E0B /* LoginItemManager.swift in Sources */,
 				C1A5S51F1C4T10NTYP35F1L4 /* ClassificationTypes.swift in Sources */,
@@ -197,9 +208,12 @@
 				3EB864E2B982E1190079CFD6 /* OnboardingView.swift in Sources */,
 				824EED3DFA100C70EBB98122 /* RulesView.swift in Sources */,
 				8F6EE59AD59FC681C25712CF /* SettingsView.swift in Sources */,
-				F23E661A2E74A43AD29B457F /* TimelineView.swift in Sources */,
-				A428DDB374850F5B7983B6B3 /* TodayView.swift in Sources */,
-				C4L3ND4RV13W5F1L3E0A2 /* CalendarView.swift in Sources */,
+				D4YV13W5F1L3E0A1B3 /* DayView.swift in Sources */,
+				S3SSR0WV13W5F1L3E0A2 /* SessionRowView.swift in Sources */,
+				S3SSR3CL4SS1FY5H33T2 /* SessionReclassifySheet.swift in Sources */,
+				S3SSR3H0T5HUMB5F1L3E2 /* SessionScreenshotThumb.swift in Sources */,
+				S3SSR3M3MB3R5C0P3F2 /* SessionRememberScope.swift in Sources */,
+				RUL3V4L1D4T0R5F1L3E2 /* RuleValidator.swift in Sources */,
 				B78C80E496BC607037332CD4 /* NudgeEngine.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -216,7 +230,6 @@
 		2B731CEFC6751AAE0EC69B98 = {
 			isa = PBXGroup;
 			children = (
-				F5BF48AA40CAD7891EB709FC /* Flowlog.app */,
 				900231A4F4D042BBB3A90457 /* AppleClassifier.swift */,
 				F61399D880475FEF78EB0CA9 /* Classifier.swift */,
 				C4B597714C6F15179BE8623F /* OCRPreprocessor.swift */,
@@ -226,6 +239,7 @@
 				AC6DD65C631862C60C475ABB /* ProductivityApp.swift */,
 				C3D4E5F60718293A4B5C6D7E /* WindowPresenter.swift */,
 				D4E5F60718293A4B5C6D7F0 /* DashboardWindowHost.swift */,
+				D4E5F60718293A4B5C6D7F4 /* OnboardingWindowHost.swift */,
 				D4E5F60718293A4B5C6D7F2 /* WindowChrome.swift */,
 				L0G1N1T3M4N4G3R5F1L3E0A /* LoginItemManager.swift */,
 				C1A5S51F1C4T10NTYP35F1L3 /* ClassificationTypes.swift */,
@@ -262,9 +276,10 @@
 				70F2F35F8E8CCCCD6589B531 /* OnboardingView.swift */,
 				DCD9E95BC1055212D37EAB4A /* RulesView.swift */,
 				9B88F337C106AF9DBAB94B00 /* SettingsView.swift */,
-				B3194D87A84723F1E311B61D /* TimelineView.swift */,
-				8DB2794100F1660CCCF193F9 /* TodayView.swift */,
-				C4L3ND4RV13W5F1L3E0A1 /* CalendarView.swift */,
+				D4YV13W5F1L3E0A1B2 /* DayView.swift */,
+				S3SSR0WV13W5F1L3E0A1 /* SessionRowView.swift */,
+				S3SSR3CL4SS1FY5H33T1 /* SessionReclassifySheet.swift */,
+				S3SSR3H0T5HUMB5F1L3E1 /* SessionScreenshotThumb.swift */,
 				0848FADA126523A47494DEB6 /* NudgeEngine.swift */,
 				A1C0N1C0A55E7C4A7A1C0N1D /* Assets.xcassets */,
 				F10WLOG1C0NA55E7C4A7A1D /* Flowlog.icon */,
@@ -301,6 +316,7 @@
 			name = Productivity;
 			packageProductDependencies = (
 				43823E14BB3DDA5E591B59F8 /* GRDB */,
+				AE71B0AA0000000000000A02 /* AgentTag */,
 			);
 			productName = Flowlog;
 			productReference = F5BF48AA40CAD7891EB709FC /* Flowlog.app */;
@@ -317,6 +333,7 @@
 			mainGroup = 8EE4FD3DC0DB94B2F30E967D;
 			packageReferences = (
 				FA2BC552446B3A2803F239B2 /* XCRemoteSwiftPackageReference "GRDB" */,
+				AE71B0AA0000000000000A03 /* XCLocalSwiftPackageReference "AgentTag" */,
 			);
 			productRefGroup = A8CBE22D73EBCC4E5F27B59C /* Products */;
 			projectDirPath = "";
@@ -335,6 +352,15 @@
 			package = FA2BC552446B3A2803F239B2 /* XCRemoteSwiftPackageReference "GRDB" */;
 			productName = GRDB;
 		};
+		AE71B0AA0000000000000A03 /* XCLocalSwiftPackageReference "AgentTag" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../AgentTag;
+		};
+		AE71B0AA0000000000000A02 /* AgentTag */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AE71B0AA0000000000000A03 /* XCLocalSwiftPackageReference "AgentTag" */;
+			productName = AgentTag;
+		};
 		CED909F3617B90BA94B5017C /* Build configuration list for PBXNativeTarget */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -349,16 +375,18 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = Flowlog;
 				CODE_SIGN_ENTITLEMENTS = Productivity/Productivity.entitlements;
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "Developer ID Application";
+				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 9325ZRF44L;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Productivity/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/../Frameworks");
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.productivity.app;
 				PRODUCT_NAME = Flowlog;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -372,10 +400,11 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = Flowlog;
 				CODE_SIGN_ENTITLEMENTS = Productivity/Productivity.entitlements;
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "Developer ID Application";
+				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 9325ZRF44L;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Productivity/Info.plist;

@@ -19,14 +19,13 @@ actor Classifier {
     func classify(_ request: ClassificationRequest, force: Bool = false) async -> ClassificationResult {
         let browserContext = SiteCatalog.parse(windowTitle: request.windowTitle)
 
-        if let rule = RulesEngine.shared.match(
-            bundleId: request.bundleId,
-            windowTitle: request.windowTitle,
-            siteLabel: browserContext.siteLabel
-        ) {
-            return rule
+        // Authority ladder — first hit wins and stops the cascade.
+        // user rule → app catalog → site catalog → cached AI.
+        if let deterministic = deterministicMatch(request: request, browserContext: browserContext) {
+            return deterministic
         }
 
+        // Live AI runs only for genuinely unknown / ambiguous contexts.
         let aiEnabled = await MainActor.run { AppSettings.shared.aiClassificationEnabled }
         if aiEnabled, !shouldDebounce(request: request, force: force) {
             if let result = await runAI(request) {
@@ -34,7 +33,55 @@ actor Classifier {
             }
         }
 
-        return heuristicFallback(request: request, browserContext: browserContext)
+        // Abstain rather than guess.
+        return uncategorized(
+            siteLabel: SiteCatalog.sanitizedSiteLabel(
+                browserContext.siteLabel,
+                bundleId: request.bundleId,
+                appName: request.appName
+            )
+        )
+    }
+
+    /// The deterministic rungs of the authority ladder, in order. Returns nil if
+    /// nothing recognizes this context (caller may then fall through to live AI).
+    /// `nonisolated` so the tracking loop can resolve a known context synchronously
+    /// without spinning up the live-AI path.
+    nonisolated func deterministicMatch(
+        request: ClassificationRequest,
+        browserContext: ParsedBrowserContext
+    ) -> ClassificationResult? {
+        // 1. User rules / manual corrections — highest authority.
+        if let rule = RulesEngine.shared.userRule(
+            bundleId: request.bundleId,
+            windowTitle: request.windowTitle,
+            siteLabel: browserContext.siteLabel
+        ) {
+            return rule
+        }
+
+        // 2. App-level hardcode — authoritative for apps where the app *is* the
+        //    intent (editors, IDEs, terminals). AI never overrides these.
+        if !BrowserDetector.isBrowser(request.bundleId),
+           let appHit = RulesEngine.shared.bundleHeuristic(bundleId: request.bundleId) {
+            return appHit
+        }
+
+        // 3. Known site/domain catalog.
+        if let domain = browserContext.domain,
+           let siteHit = RulesEngine.shared.siteHeuristic(
+               domain: domain,
+               siteLabel: browserContext.siteLabel
+           ) {
+            return siteHit
+        }
+
+        // 4. Cached AI verdict from a prior resolution.
+        return RulesEngine.shared.cachedAI(
+            bundleId: request.bundleId,
+            windowTitle: request.windowTitle,
+            siteLabel: browserContext.siteLabel
+        )
     }
 
     private func shouldDebounce(request: ClassificationRequest, force: Bool) -> Bool {
@@ -60,12 +107,27 @@ actor Classifier {
         let openRouterOnly = await MainActor.run { AppSettings.shared.openRouterOnly }
         let openRouterAPIKey = await MainActor.run { AppSettings.shared.openRouterAPIKey }
 
+        let sanitized: (ClassificationResult) -> ClassificationResult = { result in
+            ClassificationResult(
+                category: result.category,
+                siteLabel: SiteCatalog.sanitizedSiteLabel(
+                    result.siteLabel,
+                    bundleId: request.bundleId,
+                    appName: request.appName
+                ),
+                confidence: result.confidence,
+                reason: result.reason,
+                source: result.source
+            )
+        }
+
         if !openRouterOnly, AppleClassifier.shared.isSupported {
             do {
                 let result = try await AppleClassifier.shared.classify(request: request)
+                let cleaned = sanitized(result)
                 recordAICall(request: request)
-                cacheResult(request: request, result: result)
-                return result
+                cacheResult(request: request, result: cleaned)
+                return cleaned
             } catch {
                 // fall through to OpenRouter
             }
@@ -75,9 +137,10 @@ actor Classifier {
 
         do {
             let result = try await OpenRouterClassifier.shared.classify(request: request)
+            let cleaned = sanitized(result)
             recordAICall(request: request)
-            cacheResult(request: request, result: result)
-            return result
+            cacheResult(request: request, result: cleaned)
+            return cleaned
         } catch {
             return nil
         }
@@ -89,23 +152,6 @@ actor Classifier {
         } else if let title = request.windowTitle?.lowercased(), !title.isEmpty {
             lastTextCallByTitle[title] = Date()
         }
-    }
-
-    private func heuristicFallback(
-        request: ClassificationRequest,
-        browserContext: ParsedBrowserContext
-    ) -> ClassificationResult {
-        if let domain = browserContext.domain,
-           let site = RulesEngine.shared.siteHeuristic(domain: domain, siteLabel: browserContext.siteLabel) {
-            return site
-        }
-
-        if !BrowserDetector.isBrowser(request.bundleId),
-           let heuristic = RulesEngine.shared.bundleHeuristic(bundleId: request.bundleId) {
-            return heuristic
-        }
-
-        return uncategorized(siteLabel: browserContext.siteLabel)
     }
 
     private func cacheResult(request: ClassificationRequest, result: ClassificationResult) {
@@ -123,7 +169,7 @@ actor Classifier {
         session: Session,
         category: ActivityCategory,
         siteLabel: String?,
-        saveRule: Bool = true
+        remember: SessionRememberScope = .none
     ) throws {
         try DatabaseManager.shared.queue.write { db in
             var updated = session
@@ -133,16 +179,46 @@ actor Classifier {
             try updated.update(db)
         }
 
-        guard saveRule else { return }
-
-        if let siteLabel {
-            try RulesEngine.shared.addRule(patternType: .siteLabel, pattern: siteLabel.lowercased(), category: category, siteLabel: siteLabel)
-            if let domain = SiteCatalog.parse(windowTitle: session.windowTitle).domain
-                ?? SiteCatalog.domain(from: session.windowTitle ?? "") {
-                try RulesEngine.shared.addRule(patternType: .domain, pattern: domain, category: category, siteLabel: siteLabel)
+        switch remember {
+        case .none:
+            return
+        case .app:
+            try RulesEngine.shared.addRule(
+                patternType: .bundleId,
+                pattern: session.bundleId,
+                category: category,
+                siteLabel: siteLabel
+            )
+        case .site:
+            let label = siteLabel ?? session.siteLabel
+            if let label,
+               RuleValidator.isValid(pattern: label, type: .siteLabel) {
+                try RulesEngine.shared.addRule(
+                    patternType: .siteLabel,
+                    pattern: label,
+                    category: category,
+                    siteLabel: label
+                )
             }
-        } else {
-            try RulesEngine.shared.addRule(patternType: .bundleId, pattern: session.bundleId, category: category, siteLabel: siteLabel)
+            if let domain = SiteCatalog.parse(windowTitle: session.windowTitle).domain
+                ?? SiteCatalog.domain(from: session.windowTitle ?? ""),
+               RuleValidator.isValid(pattern: domain, type: .domain) {
+                try RulesEngine.shared.addRule(
+                    patternType: .domain,
+                    pattern: domain,
+                    category: category,
+                    siteLabel: label
+                )
+            }
+        case .windowTitle(let keyword):
+            guard RuleValidator.isValid(pattern: keyword, type: .windowTitle) else { return }
+            let pattern = RuleValidator.normalizedPattern(keyword, type: .windowTitle)
+            try RulesEngine.shared.addRule(
+                patternType: .windowTitle,
+                pattern: pattern,
+                category: category,
+                siteLabel: siteLabel ?? session.siteLabel
+            )
         }
     }
 
@@ -152,7 +228,7 @@ actor Classifier {
             siteLabel: siteLabel,
             confidence: 0,
             reason: nil,
-            source: .cache
+            source: .fallback
         )
     }
 }

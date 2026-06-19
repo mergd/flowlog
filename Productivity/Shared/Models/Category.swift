@@ -23,14 +23,27 @@ enum ActivityCategory: String, Codable, CaseIterable, Sendable {
         case .uncategorized: "uncategorized"
         }
     }
+
+    /// SF Symbol representing the category in badges, lists, and the menu bar.
+    var iconName: String {
+        switch self {
+        case .productive: "bolt.fill"
+        case .neutral: "circle.lefthalf.filled"
+        case .distracting: "exclamationmark.triangle.fill"
+        case .uncategorized: "questionmark.circle"
+        }
+    }
 }
 
 enum ClassificationSource: String, Codable, Sendable {
-    case rule
-    case cache
-    case apple
-    case openRouter
-    case manual
+    case rule          // user-defined rule
+    case manual        // manual correction
+    case appCatalog    // known app hardcode (authoritative)
+    case siteCatalog   // known site/domain
+    case cachedAI      // previously-resolved AI verdict, reused
+    case apple         // live on-device AI
+    case openRouter    // live remote AI
+    case fallback      // no signal — abstained to uncategorized
 }
 
 enum FocusScore {

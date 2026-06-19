@@ -15,65 +15,45 @@ enum WindowPresenter {
         openOnboardingWindow = openOnboarding
         openDashboardWindow = openDashboard
 
-        if pendingOnboardingOpen, AppState.shared.showOnboarding {
+        if pendingOnboardingOpen, AppState.shared.showOnboarding, !OnboardingWindowHost.isVisible() {
             pendingOnboardingOpen = false
             openOnboarding()
         } else {
             pendingOnboardingOpen = false
         }
 
-        if pendingDashboardOpen || AppState.shared.showDashboard {
+        if (pendingDashboardOpen || AppState.shared.showDashboard), !DashboardWindowHost.isVisible() {
             pendingDashboardOpen = false
             openDashboard()
+        } else {
+            pendingDashboardOpen = false
         }
     }
 
     static func openOnboarding() {
         guard openOnboardingWindow != nil else {
             pendingOnboardingOpen = true
+            OnboardingWindowHost.present(appState: AppState.shared)
             return
         }
         guard let app = NSApp else { return }
-        app.setActivationPolicy(.regular)
         app.activate(ignoringOtherApps: true)
         openOnboardingWindow?()
         bringOnboardingWindowToFront()
+
+        if !NSApp.windows.contains(where: { $0.matches(id: "onboarding") && $0.isVisible }) {
+            OnboardingWindowHost.present(appState: AppState.shared)
+        }
     }
 
     static func openDashboard() {
-        guard openDashboardWindow != nil else {
-            pendingDashboardOpen = true
-            DashboardWindowHost.present(appState: AppState.shared)
-            return
-        }
-        guard let app = NSApp else { return }
-        app.setActivationPolicy(.regular)
-        app.activate(ignoringOtherApps: true)
-        openDashboardWindow?()
-        bringDashboardWindowToFront()
-
-        if !NSApp.windows.contains(where: { $0.matches(id: "dashboard") && $0.isVisible }) {
-            DashboardWindowHost.present(appState: AppState.shared)
-        }
-    }
-
-    static func returnToMenuBarMode() {
-        NSApp?.setActivationPolicy(.accessory)
+        pendingDashboardOpen = false
+        DashboardWindowHost.present(appState: AppState.shared)
     }
 
     private static func bringOnboardingWindowToFront() {
         guard let app = NSApp else { return }
         for window in app.windows where window.matches(id: "onboarding") {
-            window.flowlogEnsureVisible()
-            window.makeKeyAndOrderFront(nil)
-            window.orderFrontRegardless()
-            return
-        }
-    }
-
-    private static func bringDashboardWindowToFront() {
-        guard let app = NSApp else { return }
-        for window in app.windows where window.matches(id: "dashboard") {
             window.flowlogEnsureVisible()
             window.makeKeyAndOrderFront(nil)
             window.orderFrontRegardless()
@@ -148,10 +128,12 @@ struct WindowRegistration: View {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Stay an accessory (menu-bar) app for the whole lifetime. Toggling the
+        // activation policy at runtime makes the MenuBarExtra status item reflow
+        // and leaves an empty slot beside the icon on the active display.
         NSApp.setActivationPolicy(.accessory)
 
         if AppState.shared.showOnboarding {
-            NSApp.setActivationPolicy(.regular)
             NSApp.activate(ignoringOtherApps: true)
             WindowPresenter.openOnboarding()
         }
