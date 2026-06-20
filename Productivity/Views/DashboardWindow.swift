@@ -1,5 +1,4 @@
 import SwiftUI
-import AgentTag
 
 struct DashboardWindow: View {
     @Bindable var appState: AppState
@@ -21,7 +20,6 @@ struct DashboardWindow: View {
             .scrollContentBackground(.hidden)
             .background(DashboardTheme.surface.ignoresSafeArea())
             .navigationSplitViewColumnWidth(168)
-            .agentTag("sidebarList")
         } detail: {
             detail
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -31,7 +29,6 @@ struct DashboardWindow: View {
                         if !screenRecordingGranted { screenRecordingBanner }
                     }
                 }
-                .agentTag("dashboardDetail")
         }
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: DashboardTheme.minWidth, minHeight: DashboardTheme.minHeight)
@@ -39,7 +36,6 @@ struct DashboardWindow: View {
         .toolbarBackground(.hidden, for: .windowToolbar)
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .dashboardSurface()
-        .agentTagOverlay()
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             screenRecordingGranted = Permissions.isScreenRecordingGranted()
         }

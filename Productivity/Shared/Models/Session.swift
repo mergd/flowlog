@@ -19,6 +19,8 @@ struct Session: Codable, FetchableRecord, PersistableRecord, Identifiable, Senda
     /// Screen Time–style topic (genre), independent of `category`. Nil for rows
     /// written before the topic axis existed; resolved on read where possible.
     var topic: String?
+    /// User removed this slice from the detail timeline and day stats.
+    var userDeleted: Bool
 
     var activityCategory: ActivityCategory {
         ActivityCategory(rawValue: category) ?? .uncategorized
@@ -32,7 +34,7 @@ struct Session: Codable, FetchableRecord, PersistableRecord, Identifiable, Senda
 
     enum Columns: String, ColumnExpression {
         case id, bundleId, appName, windowTitle, start, end, duration
-        case idleExcluded, category, categorySource, siteLabel, screenshotId, topic
+        case idleExcluded, category, categorySource, siteLabel, screenshotId, topic, userDeleted
     }
 }
 
@@ -75,6 +77,7 @@ extension Session {
             t.column("siteLabel", .text)
             t.column("screenshotId", .text)
             t.column("topic", .text)
+            t.column("userDeleted", .boolean).notNull().defaults(to: false)
         }
         try db.create(index: "sessions_start", on: databaseTableName, columns: ["start"], ifNotExists: true)
         try db.create(index: "sessions_category", on: databaseTableName, columns: ["category"], ifNotExists: true)

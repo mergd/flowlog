@@ -156,13 +156,11 @@
 		F10WLOG1C0NA55E7C4A7A1E /* Flowlog.icon in Resources */ = {isa = PBXBuildFile; fileRef = F10WLOG1C0NA55E7C4A7A1D /* Flowlog.icon */; };
 		F10WL0G5CR1PT0BLD00000A2 /* flowlog in Resources */ = {isa = PBXBuildFile; fileRef = F10WL0G5CR1PT0R3F00000A1 /* flowlog */; };
 		334F88284D60777BDEE67455 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 43823E14BB3DDA5E591B59F8 /* GRDB */; };
-		AE71B0AA0000000000000A01 /* AgentTag in Frameworks */ = {isa = PBXBuildFile; productRef = AE71B0AA0000000000000A02 /* AgentTag */; };
 		4F6F5CC3FCCF73F75AE9CCF4 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				334F88284D60777BDEE67455 /* GRDB in Frameworks */,
-				AE71B0AA0000000000000A01 /* AgentTag in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -332,7 +330,6 @@
 			name = Productivity;
 			packageProductDependencies = (
 				43823E14BB3DDA5E591B59F8 /* GRDB */,
-				AE71B0AA0000000000000A02 /* AgentTag */,
 			);
 			productName = Flowlog;
 			productReference = F5BF48AA40CAD7891EB709FC /* Flowlog.app */;
@@ -349,7 +346,6 @@
 			mainGroup = 8EE4FD3DC0DB94B2F30E967D;
 			packageReferences = (
 				FA2BC552446B3A2803F239B2 /* XCRemoteSwiftPackageReference "GRDB" */,
-				AE71B0AA0000000000000A03 /* XCLocalSwiftPackageReference "AgentTag" */,
 			);
 			productRefGroup = A8CBE22D73EBCC4E5F27B59C /* Products */;
 			projectDirPath = "";
@@ -367,15 +363,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = FA2BC552446B3A2803F239B2 /* XCRemoteSwiftPackageReference "GRDB" */;
 			productName = GRDB;
-		};
-		AE71B0AA0000000000000A03 /* XCLocalSwiftPackageReference "AgentTag" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = ../AgentTag;
-		};
-		AE71B0AA0000000000000A02 /* AgentTag */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = AE71B0AA0000000000000A03 /* XCLocalSwiftPackageReference "AgentTag" */;
-			productName = AgentTag;
 		};
 		CED909F3617B90BA94B5017C /* Build configuration list for PBXNativeTarget */ = {
 			isa = XCConfigurationList;

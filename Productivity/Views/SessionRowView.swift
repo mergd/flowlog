@@ -9,7 +9,7 @@ struct SessionRowView: View {
         HStack(alignment: .center, spacing: 10) {
             RoundedRectangle(cornerRadius: 2, style: .continuous)
                 .fill(CategoryColors.color(for: session.activityCategory))
-                .frame(width: 3, height: 34)
+                .frame(width: 3, height: rowHeight)
 
             sessionIcon
 
@@ -39,7 +39,7 @@ struct SessionRowView: View {
                     }
                 }
 
-                if let subtitle = SiteCatalog.displaySubtitle(for: session) {
+                if let subtitle = detailLine {
                     Text(subtitle)
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
@@ -48,6 +48,21 @@ struct SessionRowView: View {
             }
         }
         .padding(.vertical, 3)
+    }
+
+    private var rowHeight: CGFloat {
+        session.screenshotId != nil || SiteCatalog.displaySubtitle(for: session) != nil ? 40 : 34
+    }
+
+    private var detailLine: String? {
+        var parts: [String] = []
+        if session.screenshotId != nil {
+            parts.append("Screen capture")
+        }
+        if let subtitle = SiteCatalog.displaySubtitle(for: session) {
+            parts.append(subtitle)
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     @ViewBuilder

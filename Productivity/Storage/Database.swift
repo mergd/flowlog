@@ -78,6 +78,11 @@ final class DatabaseManager: @unchecked Sendable {
                 t.add(column: "topic", .text)
             }
         }
+        migrator.registerMigration("v4") { db in
+            try db.alter(table: Session.databaseTableName) { t in
+                t.add(column: "userDeleted", .boolean).notNull().defaults(to: false)
+            }
+        }
         return migrator
     }
 
@@ -128,6 +133,7 @@ final class DatabaseManager: @unchecked Sendable {
                 .fetchAll(db)
         }
         .filter { AppCatalog.shouldIncludeInStats(bundleId: $0.bundleId, appName: $0.appName) }
+        .filter { !$0.userDeleted }
         return BlockBuilder.build(from: slices)
     }
 
@@ -140,6 +146,7 @@ final class DatabaseManager: @unchecked Sendable {
                 .fetchAll(db)
         }
         .filter { AppCatalog.shouldIncludeInStats(bundleId: $0.bundleId, appName: $0.appName) }
+        .filter { !$0.userDeleted }
         return BlockBuilder.build(from: slices)
     }
 
@@ -158,7 +165,18 @@ final class DatabaseManager: @unchecked Sendable {
         guard AppCatalog.shouldIncludeInStats(bundleId: session.bundleId, appName: session.appName) else {
             return false
         }
-        return !session.idleExcluded
+        return !session.idleExcluded && !session.userDeleted
+    }
+
+    func markSessionsDeleted(ids: [Int64]) throws {
+        guard !ids.isEmpty else { return }
+        try queue.write { db in
+            for id in ids {
+                guard var session = try Session.fetchOne(db, key: id) else { continue }
+                session.userDeleted = true
+                try session.update(db)
+            }
+        }
     }
 
     func sessions(in range: Range<Date>) throws -> [Session] {
@@ -167,6 +185,7 @@ final class DatabaseManager: @unchecked Sendable {
                 .filter(Session.Columns.start >= range.lowerBound)
                 .filter(Session.Columns.start < range.upperBound)
                 .filter(Session.Columns.idleExcluded == false)
+                .filter(Session.Columns.userDeleted == false)
                 .order(Session.Columns.start.asc)
                 .fetchAll(db)
         }
@@ -240,6 +259,7 @@ final class DatabaseManager: @unchecked Sendable {
                 .filter(Session.Columns.start >= since)
                 .filter(Session.Columns.category == ActivityCategory.distracting.rawValue)
                 .filter(Session.Columns.idleExcluded == false)
+                .filter(Session.Columns.userDeleted == false)
                 .fetchAll(db)
             return rows.reduce(0) { $0 + $1.duration }
         }

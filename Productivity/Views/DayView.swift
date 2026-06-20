@@ -283,13 +283,13 @@ struct DayView: View {
             VStack(spacing: 0) {
                 ForEach(items) { item in
                     switch item {
-                    case let .session(session):
-                        SessionRowView(session: session) { selectedScreenshot = $0 }
+                    case let .session(item):
+                        SessionRowView(session: item.session) { selectedScreenshot = $0 }
                             .padding(.horizontal, DashboardTheme.hInset)
                             .padding(.vertical, 2)
                             .contentShape(Rectangle())
-                            .contextMenu { sessionMenu(for: session) }
-                            .onTapGesture(count: 2) { reclassifyTarget = ReclassifyTarget(session: session) }
+                            .contextMenu { sessionMenu(for: item) }
+                            .onTapGesture(count: 2) { reclassifyTarget = ReclassifyTarget(session: item.session) }
                     case let .gap(start, end):
                         gapRow(start: start, end: end)
                     case let .pause(start, end):
@@ -416,11 +416,23 @@ struct DayView: View {
     }
 
     @ViewBuilder
-    private func sessionMenu(for session: Session) -> some View {
+    private func sessionMenu(for item: TimelineSession) -> some View {
+        let session = item.session
         Button("Reclassify…") { reclassifyTarget = ReclassifyTarget(session: session) }
         if session.screenshotId != nil {
             Button("View capture") { selectedScreenshot = session.screenshotId }
         }
+        Divider()
+        Button("Remove from timeline", role: .destructive) {
+            removeFromTimeline(item)
+        }
+    }
+
+    private func removeFromTimeline(_ item: TimelineSession) {
+        guard !item.sourceIds.isEmpty else { return }
+        try? DatabaseManager.shared.markSessionsDeleted(ids: item.sourceIds)
+        NotificationCenter.default.post(name: .productivityDataDidChange, object: nil)
+        reload()
     }
 
     // MARK: - Range + binning
@@ -557,13 +569,14 @@ struct DayView: View {
 
     /// Sessions interleaved (newest first) with "untracked" gaps longer than the threshold.
     private var timelineItems: [TimelineItem] {
-        let chrono = mergedSessions.sorted { $0.start < $1.start }
+        let chrono = mergedSessions.sorted { $0.session.start < $1.session.start }
         var items: [TimelineItem] = []
-        for (index, session) in chrono.enumerated() {
-            items.append(.session(session))
+        for (index, item) in chrono.enumerated() {
+            items.append(.session(item))
             guard index < chrono.count - 1 else { continue }
+            let session = item.session
             let gapStart = session.end ?? session.start
-            let gapEnd = chrono[index + 1].start
+            let gapEnd = chrono[index + 1].session.start
             guard gapEnd.timeIntervalSince(gapStart) >= Self.untrackedGapThreshold else { continue }
             // A deliberate snooze covering this gap reads as "Paused", not "Untracked".
             if let pause = pauses.first(where: { $0.start < gapEnd && ($0.end ?? Date()) > gapStart }) {
@@ -580,8 +593,9 @@ struct DayView: View {
         guard let range = selectedHourRange else { return timelineItems }
         return timelineItems.filter { item in
             switch item {
-            case let .session(s):
-                return overlaps(range, start: s.start, end: s.end ?? s.start.addingTimeInterval(s.duration))
+            case let .session(item):
+                let session = item.session
+                return overlaps(range, start: session.start, end: session.end ?? session.start.addingTimeInterval(session.duration))
             case let .gap(start, end):
                 return overlaps(range, start: start, end: end)
             case let .pause(start, end):
@@ -592,24 +606,27 @@ struct DayView: View {
 
     private static let untrackedGapThreshold: TimeInterval = 10 * 60
 
-    private var mergedSessions: [Session] {
+    private var mergedSessions: [TimelineSession] {
         let sorted = sessions.sorted { $0.start < $1.start }
-        var merged: [Session] = []
-        for s in sorted {
-            if var last = merged.last,
-               last.bundleId == s.bundleId,
-               last.siteLabel == s.siteLabel,
-               last.category == s.category,
-               s.start.timeIntervalSince(last.end ?? last.start) < 300 {
-                last.duration += s.duration
-                last.end = s.end ?? s.start
-                if last.screenshotId == nil { last.screenshotId = s.screenshotId }
-                merged[merged.count - 1] = last
+        var merged: [TimelineSession] = []
+        for session in sorted {
+            if var last = merged.last?.session,
+               last.bundleId == session.bundleId,
+               last.siteLabel == session.siteLabel,
+               last.category == session.category,
+               session.start.timeIntervalSince(last.end ?? last.start) < 300 {
+                last.duration += session.duration
+                last.end = session.end ?? session.start
+                if last.screenshotId == nil { last.screenshotId = session.screenshotId }
+                var sourceIds = merged[merged.count - 1].sourceIds
+                if let id = session.id { sourceIds.append(id) }
+                merged[merged.count - 1] = TimelineSession(session: last, sourceIds: sourceIds)
             } else {
-                merged.append(s)
+                let sourceIds = session.id.map { [$0] } ?? []
+                merged.append(TimelineSession(session: session, sourceIds: sourceIds))
             }
         }
-        return merged.sorted { $0.start > $1.start }
+        return merged.sorted { $0.session.start > $1.session.start }
     }
 
     private func reload() {
@@ -777,15 +794,27 @@ struct BlockRowView: View {
     }
 }
 
+private struct TimelineSession: Identifiable {
+    var session: Session
+    let sourceIds: [Int64]
+
+    var id: String {
+        if let first = sourceIds.first {
+            return "s-\(first)"
+        }
+        return "s-\(Int64(session.start.timeIntervalSince1970))"
+    }
+}
+
 private enum TimelineItem: Identifiable {
-    case session(Session)
+    case session(TimelineSession)
     case gap(start: Date, end: Date)
     case pause(start: Date, end: Date)
 
     var id: String {
         switch self {
-        case let .session(session):
-            return "s-\(session.id ?? Int64(session.start.timeIntervalSince1970))"
+        case let .session(item):
+            return item.id
         case let .gap(start, end):
             return "g-\(Int(start.timeIntervalSince1970))-\(Int(end.timeIntervalSince1970))"
         case let .pause(start, end):

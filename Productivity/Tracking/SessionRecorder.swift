@@ -35,7 +35,8 @@ actor SessionRecorder {
             categorySource: categorySource?.rawValue,
             siteLabel: SiteCatalog.sanitizedSiteLabel(siteLabel, bundleId: bundleId, appName: appName),
             screenshotId: screenshotId,
-            topic: (topic ?? .uncategorized).rawValue
+            topic: (topic ?? .uncategorized).rawValue,
+            userDeleted: false
         )
 
         let insertedId = try await DatabaseManager.shared.queue.write { db -> Int64 in
