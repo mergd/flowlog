@@ -8,11 +8,39 @@ enum DesktopScreenshotCapture {
         let union = await MainActor.run { desktopUnionRect() }
         guard let union, union.width > 0, union.height > 0 else { return nil }
 
-        do {
-            let cgImage = try await SCScreenshotManager.captureImage(in: union)
+        if let cgImage = await captureImage(in: union) {
             return NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
-        } catch {
-            return await captureDisplaysComposite(fallbackUnion: union)
+        }
+        return await captureDisplaysComposite(fallbackUnion: union)
+    }
+
+    /// Capture a screen rect, tolerating ScreenCaptureKit's transient
+    /// `(nil image, nil error)` callback.
+    ///
+    /// We deliberately use the completion-handler API instead of the bridged
+    /// `async` form. The `async` form installs a compiler-generated *checked*
+    /// completion thunk that promises a non-nil `CGImage` or a thrown error; when
+    /// ScreenCaptureKit fires the callback with BOTH nil (which happens
+    /// transiently — screen locked, display asleep/reconfiguring, screensaver,
+    /// fast user-switching) that thunk satisfies neither contract and traps
+    /// (EXC_BREAKPOINT / SIGTRAP), crashing the app. Handling the callback
+    /// ourselves lets us treat that case as a plain failure.
+    private static func captureImage(in rect: CGRect) async -> CGImage? {
+        await withCheckedContinuation { continuation in
+            SCScreenshotManager.captureImage(in: rect) { image, _ in
+                continuation.resume(returning: image)
+            }
+        }
+    }
+
+    private static func captureImage(
+        filter: SCContentFilter,
+        configuration: SCStreamConfiguration
+    ) async -> CGImage? {
+        await withCheckedContinuation { continuation in
+            SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration) { image, _ in
+                continuation.resume(returning: image)
+            }
         }
     }
 
@@ -38,7 +66,9 @@ enum DesktopScreenshotCapture {
                 configuration.width = Int(filter.contentRect.width * scale)
                 configuration.height = Int(filter.contentRect.height * scale)
 
-                let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration)
+                guard let image = await captureImage(filter: filter, configuration: configuration) else {
+                    continue
+                }
                 images.append((filter.contentRect, image))
             }
 
