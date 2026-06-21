@@ -55,6 +55,7 @@ rm -rf "$dsym_store/Flowlog.app.dSYM"
 cp -R "$dsym_src" "$dsym_store/Flowlog.app.dSYM"
 dwarfdump --uuid "$dsym_src" | tee "$dsym_store/UUID.txt"
 
+app_dist_zip=""
 if [[ "${NOTARIZE:-0}" == "1" ]]; then
   profile="${NOTARY_PROFILE:-flowlog-notary}"
   echo "==> Notarizing (profile: $profile)"
@@ -63,9 +64,13 @@ if [[ "${NOTARIZE:-0}" == "1" ]]; then
   xcrun notarytool submit "$zip_path" --keychain-profile "$profile" --wait
   xcrun stapler staple "$dist_dir/Flowlog.app"
   echo "Notarized + stapled: $dist_dir/Flowlog.app"
+  # Re-zip AFTER stapling — this is the distributable (runs offline, no warning).
+  app_dist_zip="$build_dir/Flowlog-$tag-app.zip"
+  rm -f "$app_dist_zip"
+  ditto -c -k --keepParent "$dist_dir/Flowlog.app" "$app_dist_zip"
 fi
 
-# --- GitHub Release: store the dSYM as a versioned, off-tree asset ------------
+# --- GitHub Release: dSYM (always) + the notarized app (when notarized) -------
 # dSYMs are 50 MB binaries that grow per release — too heavy for git history.
 # Attaching them to the version's GitHub release keeps them durable, matched to
 # the tag, and out of the repo. Skipped if `gh` is unavailable or UPLOAD_DSYM=0.
@@ -74,17 +79,17 @@ if [[ "${UPLOAD_DSYM:-1}" == "1" ]] && command -v gh >/dev/null 2>&1; then
   dsym_zip="$build_dir/Flowlog-$tag.dSYM.zip"
   rm -f "$dsym_zip"
   ditto -c -k --keepParent "$dsym_store/Flowlog.app.dSYM" "$dsym_zip"
-  echo "==> Publishing dSYM to GitHub release $rel_tag"
-  if gh release view "$rel_tag" >/dev/null 2>&1; then
-    gh release upload "$rel_tag" "$dsym_zip" --clobber
-  else
-    gh release create "$rel_tag" "$dsym_zip" \
+  echo "==> Publishing to GitHub release $rel_tag"
+  if ! gh release view "$rel_tag" >/dev/null 2>&1; then
+    gh release create "$rel_tag" \
       --title "Flowlog $version (build $build_num)" \
-      --notes "dSYM attached for crash symbolication. Build UUID in dSYMs/$tag/UUID.txt." \
+      --notes "Notarized app + dSYM. Build UUID in dSYMs/$tag/UUID.txt." \
       --latest=false
   fi
+  gh release upload "$rel_tag" "$dsym_zip" --clobber
+  [[ -n "$app_dist_zip" ]] && gh release upload "$rel_tag" "$app_dist_zip" --clobber
 fi
 
 echo
-echo "App:   $dist_dir/Flowlog.app"
-echo "dSYM:  $dsym_store/Flowlog.app.dSYM  (also uploaded to GitHub release v$tag)"
+echo "App:   $dist_dir/Flowlog.app${app_dist_zip:+  (notarized; $app_dist_zip)}"
+echo "dSYM:  $dsym_store/Flowlog.app.dSYM  (also on GitHub release v$tag)"
