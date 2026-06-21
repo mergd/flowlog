@@ -7,11 +7,9 @@ struct SessionRowView: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 10) {
-            RoundedRectangle(cornerRadius: 2, style: .continuous)
-                .fill(CategoryColors.color(for: session.activityCategory))
-                .frame(width: 3, height: rowHeight)
-
-            sessionIcon
+            CategoryRingIcon(category: session.activityCategory, size: 24) {
+                sessionIcon
+            }
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 8) {
@@ -20,6 +18,13 @@ struct SessionRowView: View {
                         .lineLimit(1)
 
                     Spacer(minLength: 4)
+
+                    // Camera sits before the time in a fixed-width slot so the
+                    // time/duration columns stay aligned across rows whether or
+                    // not a row has a capture.
+                    if onScreenshotTap != nil {
+                        cameraButton.frame(width: 18)
+                    }
 
                     if showsTimeRange {
                         Text(timeRange)
@@ -30,12 +35,6 @@ struct SessionRowView: View {
 
                     if session.duration >= 60 {
                         DurationLabel(seconds: session.duration)
-                    }
-
-                    if let screenshotId = session.screenshotId, onScreenshotTap != nil {
-                        SessionScreenshotThumb(screenshotId: screenshotId) {
-                            onScreenshotTap?(screenshotId)
-                        }
                     }
                 }
 
@@ -50,8 +49,20 @@ struct SessionRowView: View {
         .padding(.vertical, 3)
     }
 
-    private var rowHeight: CGFloat {
-        session.screenshotId != nil || SiteCatalog.displaySubtitle(for: session) != nil ? 40 : 34
+    @ViewBuilder
+    private var cameraButton: some View {
+        if let screenshotId = session.screenshotId {
+            Button {
+                onScreenshotTap?(screenshotId)
+            } label: {
+                Image(systemName: "camera.fill")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("View capture")
+        }
     }
 
     private var detailLine: String? {

@@ -154,7 +154,7 @@ struct DayView: View {
     }
 
     private var legend: some View {
-        HStack(spacing: 16) {
+        FlowLayout(spacing: 16, lineSpacing: 6) {
             ForEach(categoryOrder, id: \.self) { cat in
                 let secs = totals[cat.rawValue] ?? 0
                 if secs > 0 {
@@ -167,8 +167,8 @@ struct DayView: View {
                     }
                 }
             }
-            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -284,12 +284,27 @@ struct DayView: View {
                 ForEach(items) { item in
                     switch item {
                     case let .session(item):
-                        SessionRowView(session: item.session) { selectedScreenshot = $0 }
-                            .padding(.horizontal, DashboardTheme.hInset)
-                            .padding(.vertical, 2)
-                            .contentShape(Rectangle())
-                            .contextMenu { sessionMenu(for: item) }
-                            .onTapGesture(count: 2) { reclassifyTarget = ReclassifyTarget(session: item.session) }
+                        HStack(spacing: 2) {
+                            SessionRowView(session: item.session) { selectedScreenshot = $0 }
+                            Menu {
+                                sessionMenu(for: item)
+                            } label: {
+                                Image(systemName: "ellipsis")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 26, height: 26)
+                                    .contentShape(Rectangle())
+                            }
+                            .menuStyle(.borderlessButton)
+                            .menuIndicator(.hidden)
+                            .fixedSize()
+                            .help("Actions")
+                        }
+                        .padding(.horizontal, DashboardTheme.hInset)
+                        .padding(.vertical, 2)
+                        .contentShape(Rectangle())
+                        .contextMenu { sessionMenu(for: item) }
+                        .onTapGesture(count: 2) { reclassifyTarget = ReclassifyTarget(session: item.session) }
                     case let .gap(start, end):
                         gapRow(start: start, end: end)
                     case let .pause(start, end):
@@ -680,11 +695,9 @@ struct BlockRowView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .center, spacing: 10) {
-                RoundedRectangle(cornerRadius: 2, style: .continuous)
-                    .fill(CategoryColors.color(for: block.category))
-                    .frame(width: 3, height: 34)
-
-                icon
+                CategoryRingIcon(category: block.category, size: 24) {
+                    icon
+                }
 
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 8) {

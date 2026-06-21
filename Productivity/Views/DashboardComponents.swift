@@ -22,6 +22,65 @@ enum CategoryColors {
     }
 }
 
+/// A simple flow layout: lays subviews left-to-right, wrapping to a new line when
+/// the next item would overflow the available width. Used for legends/chips that
+/// must wrap rather than truncate or overflow at narrow widths.
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+    var lineSpacing: CGFloat = 6
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var x: CGFloat = 0, y: CGFloat = 0, lineHeight: CGFloat = 0, maxLineWidth: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0, x + size.width > maxWidth {
+                maxLineWidth = max(maxLineWidth, x - spacing)
+                x = 0; y += lineHeight + lineSpacing; lineHeight = 0
+            }
+            x += size.width + spacing
+            lineHeight = max(lineHeight, size.height)
+        }
+        maxLineWidth = max(maxLineWidth, x - spacing)
+        let width = maxWidth == .infinity ? maxLineWidth : maxWidth
+        return CGSize(width: max(0, width), height: y + lineHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) {
+        var x: CGFloat = 0, y: CGFloat = 0, lineHeight: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0, x + size.width > bounds.width {
+                x = 0; y += lineHeight + lineSpacing; lineHeight = 0
+            }
+            subview.place(at: CGPoint(x: bounds.minX + x, y: bounds.minY + y), anchor: .topLeading, proposal: ProposedViewSize(size))
+            x += size.width + spacing
+            lineHeight = max(lineHeight, size.height)
+        }
+    }
+}
+
+/// Wraps a row icon with a category-colored ring, replacing the old colored bar.
+/// The ring sits just outside the icon with a small gap so the icon stays legible.
+struct CategoryRingIcon<Content: View>: View {
+    let category: ActivityCategory
+    let size: CGFloat
+    var lineWidth: CGFloat = 2
+    var gap: CGFloat = 3
+    @ViewBuilder var icon: () -> Content
+
+    var body: some View {
+        let outer = size + (gap + lineWidth) * 2
+        icon()
+            .frame(width: size, height: size)
+            .frame(width: outer, height: outer)
+            .overlay(
+                RoundedRectangle(cornerRadius: outer * 0.26, style: .continuous)
+                    .strokeBorder(CategoryColors.color(for: category), lineWidth: lineWidth)
+            )
+    }
+}
+
 enum DurationFormatting {
     static func short(_ seconds: TimeInterval, zeroLabel: String = "<1m") -> String {
         let m = Int(seconds) / 60
