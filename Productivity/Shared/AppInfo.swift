@@ -34,4 +34,10 @@ enum AppInfo {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }
+
+    static func crashReportsDirectory() throws -> URL {
+        let dir = try applicationSupportDirectory().appendingPathComponent("CrashReports", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
 }

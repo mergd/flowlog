@@ -22,6 +22,7 @@ Debugging data quality:
   explain       Counted vs excluded time for today
   gaps          Tracking gaps in today's timeline
   screenshots   Sessions with stored screenshots
+  crashes       Stored crash reports (captured via MetricKit)
 
 Other:
   db-path       Print the database path
@@ -347,6 +348,28 @@ case "${1:-}" in
         exit 1
         ;;
     esac
+    ;;
+  crashes)
+    dir="$HOME/Library/Application Support/Flowlog/CrashReports"
+    if [[ ! -d "$dir" ]] || [[ -z "$(ls -A "$dir" 2>/dev/null)" ]]; then
+      echo "No crash reports stored."
+      echo "(Flowlog persists MetricKit crash reports here on the next launch after a crash.)"
+      exit 0
+    fi
+    # Newest first. Each file is an MXDiagnosticPayload; pull a one-line summary
+    # with plutil (stock macOS), and point at the full JSON for detail.
+    for f in $(ls -t "$dir"/crash-*.json 2>/dev/null); do
+      meta="crashDiagnostics.0.diagnosticMetaData"
+      type="$(plutil -extract "$meta.exceptionType" raw "$f" 2>/dev/null || echo '?')"
+      sig="$(plutil -extract "$meta.signal" raw "$f" 2>/dev/null || echo '?')"
+      ver="$(plutil -extract "$meta.appVersion" raw "$f" 2>/dev/null || echo '?')"
+      build="$(plutil -extract "$meta.appBuildVersion" raw "$f" 2>/dev/null || echo '?')"
+      term="$(plutil -extract "$meta.terminationReason" raw "$f" 2>/dev/null || echo '')"
+      printf '%s\n  exceptionType=%s signal=%s app=%s (%s)\n' "$(basename "$f")" "$type" "$sig" "$ver" "$build"
+      [[ -n "$term" ]] && printf '  %s\n' "$term"
+    done
+    echo
+    echo "Full detail:  plutil -p '$dir/<file>'"
     ;;
   rules)
     run_sql "

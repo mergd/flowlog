@@ -49,6 +49,7 @@
 		D4E5F60718293A4B5C6D7F2 /* WindowChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/App/WindowChrome.swift"; sourceTree = SOURCE_ROOT; };
 		L0G1N1T3M4N4G3R5F1L3E0A /* LoginItemManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/App/LoginItemManager.swift"; sourceTree = SOURCE_ROOT; };
 		CL1T00L1N5T4LL3R5F1L3E0A /* CommandLineToolInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/App/CommandLineToolInstaller.swift"; sourceTree = SOURCE_ROOT; };
+		CR45HR3P0RT3R5F1L3R3F0A /* CrashReporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/App/CrashReporter.swift"; sourceTree = SOURCE_ROOT; };
 		C1A5S51F1C4T10NTYP35F1L3 /* ClassificationTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Classification/ClassificationTypes.swift"; sourceTree = SOURCE_ROOT; };
 		EEE203EF4B1CEB2DB23F281B /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Shared/AppSettings.swift"; sourceTree = SOURCE_ROOT; };
 		A7C4T4L0G5H4R3D2F1L3E0A /* AppCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Shared/AppCatalog.swift"; sourceTree = SOURCE_ROOT; };
@@ -109,6 +110,7 @@
 		D4E5F60718293A4B5C6D7F3 /* WindowChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F60718293A4B5C6D7F2 /* WindowChrome.swift */; };
 		L0G1N1T3M4N4G3R5F1L3E0B /* LoginItemManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = L0G1N1T3M4N4G3R5F1L3E0A /* LoginItemManager.swift */; };
 		CL1T00L1N5T4LL3R5F1L3E0B /* CommandLineToolInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = CL1T00L1N5T4LL3R5F1L3E0A /* CommandLineToolInstaller.swift */; };
+		CR45HR3P0RT3R5F1L3BLD0B /* CrashReporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = CR45HR3P0RT3R5F1L3R3F0A /* CrashReporter.swift */; };
 		C1A5S51F1C4T10NTYP35F1L4 /* ClassificationTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A5S51F1C4T10NTYP35F1L3 /* ClassificationTypes.swift */; };
 		6D96CD6327BAC456381E0EA5 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEE203EF4B1CEB2DB23F281B /* AppSettings.swift */; };
 		A7C4T4L0G5H4R3D2F1L3E0B /* AppCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7C4T4L0G5H4R3D2F1L3E0A /* AppCatalog.swift */; };
@@ -181,6 +183,7 @@
 				D4E5F60718293A4B5C6D7F3 /* WindowChrome.swift in Sources */,
 				L0G1N1T3M4N4G3R5F1L3E0B /* LoginItemManager.swift in Sources */,
 				CL1T00L1N5T4LL3R5F1L3E0B /* CommandLineToolInstaller.swift in Sources */,
+				CR45HR3P0RT3R5F1L3BLD0B /* CrashReporter.swift in Sources */,
 				C1A5S51F1C4T10NTYP35F1L4 /* ClassificationTypes.swift in Sources */,
 				6D96CD6327BAC456381E0EA5 /* AppSettings.swift in Sources */,
 				A7C4T4L0G5H4R3D2F1L3E0B /* AppCatalog.swift in Sources */,
@@ -253,6 +256,7 @@
 				D4E5F60718293A4B5C6D7F2 /* WindowChrome.swift */,
 				L0G1N1T3M4N4G3R5F1L3E0A /* LoginItemManager.swift */,
 				CL1T00L1N5T4LL3R5F1L3E0A /* CommandLineToolInstaller.swift */,
+				CR45HR3P0RT3R5F1L3R3F0A /* CrashReporter.swift */,
 				C1A5S51F1C4T10NTYP35F1L3 /* ClassificationTypes.swift */,
 				EEE203EF4B1CEB2DB23F281B /* AppSettings.swift */,
 				A7C4T4L0G5H4R3D2F1L3E0A /* AppCatalog.swift */,
@@ -414,6 +418,8 @@
 				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/../Frameworks");
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ARCHS = arm64;
 				PRODUCT_BUNDLE_IDENTIFIER = com.productivity.app;
 				PRODUCT_NAME = Flowlog;
 				SWIFT_EMIT_LOC_STRINGS = YES;

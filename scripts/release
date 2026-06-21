@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Build a distributable Flowlog.app and ARCHIVE its dSYM, keyed by version+UUID.
+#
+# Generating a dSYM (the Release build setting) is only half the story — a crash
+# report from a user is unreadable unless you kept the dSYM for that *exact*
+# build. This script captures it every release so symbolication stays possible.
+#
+# Usage:
+#   scripts/release              # archive build → dist/Flowlog.app + dSYMs/<ver>/
+#   NOTARIZE=1 scripts/release   # also notarize + staple (needs a notarytool
+#                                #   keychain profile named in NOTARY_PROFILE)
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$root"
+
+project="Productivity.xcodeproj"
+scheme="Productivity"
+build_dir="$root/build"
+archive_path="$build_dir/Flowlog.xcarchive"
+dist_dir="$root/dist"
+
+settings() { xcodebuild -project "$project" -target "$scheme" -configuration Release -showBuildSettings 2>/dev/null; }
+version="$(settings | awk -F' = ' '/ MARKETING_VERSION =/{print $2; exit}')"
+build_num="$(settings | awk -F' = ' '/ CURRENT_PROJECT_VERSION =/{print $2; exit}')"
+tag="${version}-${build_num}"
+
+echo "==> Archiving Flowlog $tag"
+rm -rf "$archive_path"
+xcodebuild archive \
+  -project "$project" \
+  -scheme "$scheme" \
+  -configuration Release \
+  -archivePath "$archive_path" \
+  -destination "generic/platform=macOS" \
+  | grep -E "error:|warning: .*dsym|ARCHIVE" || true
+
+app_src="$archive_path/Products/Applications/Flowlog.app"
+dsym_src="$archive_path/dSYMs/Flowlog.app.dSYM"
+
+[[ -d "$app_src" ]]  || { echo "Archive missing app: $app_src" >&2; exit 1; }
+[[ -d "$dsym_src" ]] || { echo "Archive missing dSYM: $dsym_src — is DEBUG_INFORMATION_FORMAT=dwarf-with-dsym on Release?" >&2; exit 1; }
+
+# Stage the app for distribution.
+mkdir -p "$dist_dir"
+rm -rf "$dist_dir/Flowlog.app"
+cp -R "$app_src" "$dist_dir/Flowlog.app"
+
+# Archive the dSYM under a version-tagged folder. Record the UUID so a future
+# crash report can be matched to the exact build that produced it.
+dsym_store="$root/dSYMs/$tag"
+mkdir -p "$dsym_store"
+rm -rf "$dsym_store/Flowlog.app.dSYM"
+cp -R "$dsym_src" "$dsym_store/Flowlog.app.dSYM"
+dwarfdump --uuid "$dsym_src" | tee "$dsym_store/UUID.txt"
+
+if [[ "${NOTARIZE:-0}" == "1" ]]; then
+  profile="${NOTARY_PROFILE:-flowlog-notary}"
+  echo "==> Notarizing (profile: $profile)"
+  zip_path="$build_dir/Flowlog-$tag.zip"
+  ditto -c -k --keepParent "$dist_dir/Flowlog.app" "$zip_path"
+  xcrun notarytool submit "$zip_path" --keychain-profile "$profile" --wait
+  xcrun stapler staple "$dist_dir/Flowlog.app"
+  echo "Notarized + stapled: $dist_dir/Flowlog.app"
+fi
+
+# --- GitHub Release: store the dSYM as a versioned, off-tree asset ------------
+# dSYMs are 50 MB binaries that grow per release — too heavy for git history.
+# Attaching them to the version's GitHub release keeps them durable, matched to
+# the tag, and out of the repo. Skipped if `gh` is unavailable or UPLOAD_DSYM=0.
+if [[ "${UPLOAD_DSYM:-1}" == "1" ]] && command -v gh >/dev/null 2>&1; then
+  rel_tag="v$tag"
+  dsym_zip="$build_dir/Flowlog-$tag.dSYM.zip"
+  rm -f "$dsym_zip"
+  ditto -c -k --keepParent "$dsym_store/Flowlog.app.dSYM" "$dsym_zip"
+  echo "==> Publishing dSYM to GitHub release $rel_tag"
+  if gh release view "$rel_tag" >/dev/null 2>&1; then
+    gh release upload "$rel_tag" "$dsym_zip" --clobber
+  else
+    gh release create "$rel_tag" "$dsym_zip" \
+      --title "Flowlog $version (build $build_num)" \
+      --notes "dSYM attached for crash symbolication. Build UUID in dSYMs/$tag/UUID.txt." \
+      --latest=false
+  fi
+fi
+
+echo
+echo "App:   $dist_dir/Flowlog.app"
+echo "dSYM:  $dsym_store/Flowlog.app.dSYM  (also uploaded to GitHub release v$tag)"

@@ -1,7 +1,13 @@
 # Xcode
 build/
+dist/
 DerivedData/
 .derivedData/
+
+# dSYMs are 50 MB binaries kept per release for crash symbolication. Too heavy
+# for git history — `scripts/release` uploads them to the version's GitHub
+# release instead, so the local folder is just a staging area.
+dSYMs/
 *.xcuserstate
 *.xcuserdata
 xcuserdata/
