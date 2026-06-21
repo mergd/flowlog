@@ -359,6 +359,7 @@ final class TrackingCoordinator: ObservableObject {
                 category: resolvedCategory,
                 categorySource: resolvedSource,
                 siteLabel: siteLabel,
+                topic: topic,
                 sessionIdentity: sessionIdentity
             )
         }
