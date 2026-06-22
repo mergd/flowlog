@@ -65,19 +65,21 @@ struct FlowLayout: Layout {
 struct CategoryRingIcon<Content: View>: View {
     let category: ActivityCategory
     let size: CGFloat
-    var lineWidth: CGFloat = 2
-    var gap: CGFloat = 3
+    var lineWidth: CGFloat = 1.5
+    var gap: CGFloat = 2.5
     @ViewBuilder var icon: () -> Content
 
     var body: some View {
         let outer = size + (gap + lineWidth) * 2
-        icon()
-            .frame(width: size, height: size)
-            .frame(width: outer, height: outer)
-            .overlay(
-                RoundedRectangle(cornerRadius: outer * 0.26, style: .continuous)
-                    .strokeBorder(CategoryColors.color(for: category), lineWidth: lineWidth)
-            )
+        ZStack {
+            RoundedRectangle(cornerRadius: outer * 0.26, style: .continuous)
+                .strokeBorder(CategoryColors.color(for: category), lineWidth: lineWidth)
+                .frame(width: outer, height: outer)
+
+            icon()
+                .frame(width: size, height: size)
+        }
+        .frame(width: outer, height: outer)
     }
 }
 

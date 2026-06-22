@@ -29,9 +29,9 @@ struct SettingsView: View {
 
             Section("Nudges") {
                 Toggle("Notify when off track", isOn: Bindable(settings).nudgesEnabled)
-                    .onChange(of: settings.nudgesEnabled) { _, enabled in
-                        if enabled { NudgeEngine.shared.start() }
-                    }
+                    .onChange(of: settings.nudgesEnabled) { _, _ in NudgeEngine.shared.start() }
+                Toggle("Check every 30 minutes", isOn: Bindable(settings).nudgeEvery30MinutesEnabled)
+                    .onChange(of: settings.nudgeEvery30MinutesEnabled) { _, _ in NudgeEngine.shared.start() }
                 Toggle("Only during work hours", isOn: Bindable(settings).nudgeOnlyDuringWorkHours)
                 Stepper("Threshold: \(settings.nudgeThresholdMinutes) min/hr", value: Bindable(settings).nudgeThresholdMinutes, in: 5...60, step: 5)
                 Stepper("Cooldown: \(settings.nudgeCooldownMinutes) min", value: Bindable(settings).nudgeCooldownMinutes, in: 10...120, step: 5)

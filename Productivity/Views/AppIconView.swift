@@ -94,7 +94,7 @@ struct SiteIconView: View {
                     .clipShape(RoundedRectangle(cornerRadius: size * 0.14, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: size * 0.14, style: .continuous)
-                            .strokeBorder(DashboardTheme.surface, lineWidth: size * 0.07)
+                            .strokeBorder(DashboardTheme.surface, lineWidth: max(1, size * 0.04))
                     }
                     .offset(x: size * 0.22, y: size * 0.22)
             }

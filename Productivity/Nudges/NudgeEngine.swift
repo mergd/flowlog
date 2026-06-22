@@ -6,15 +6,21 @@ final class NudgeEngine {
     static let shared = NudgeEngine()
 
     private var timer: Timer?
-    private var lastNudgeDate: Date?
-    private var nudgeCountToday = 0
+    private var lastThresholdNudgeDate: Date?
+    private var lastPeriodicNudgeDate: Date?
+    private let defaults = UserDefaults.standard
+
+    private static let lastPeriodicNudgeKey = "nudgeEngine.lastPeriodicNudge"
+    private static let periodicIntervalMinutes = 30
 
     func start() {
         requestPermissionIfNeeded()
+        lastPeriodicNudgeDate = defaults.object(forKey: Self.lastPeriodicNudgeKey) as? Date
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             Task { @MainActor in await self?.evaluate() }
         }
+        Task { await evaluate() }
     }
 
     func stop() {
@@ -23,36 +29,78 @@ final class NudgeEngine {
     }
 
     private func requestPermissionIfNeeded() {
-        guard AppSettings.shared.nudgesEnabled else { return }
+        let settings = AppSettings.shared
+        guard settings.nudgesEnabled || settings.nudgeEvery30MinutesEnabled else { return }
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
 
     func evaluate() async {
         let settings = AppSettings.shared
-        guard settings.nudgesEnabled else { return }
+        guard settings.nudgesEnabled || settings.nudgeEvery30MinutesEnabled else { return }
         guard !isQuietHours() else { return }
         if settings.nudgeOnlyDuringWorkHours, !isWorkHours() { return }
 
-        let windowStart = Date().addingTimeInterval(-Double(settings.nudgeRollingWindowMinutes * 60))
-        guard let distractingSeconds = try? DatabaseManager.shared.distractingDuration(since: windowStart) else { return }
-        let distractingMinutes = distractingSeconds / 60
+        if settings.nudgesEnabled {
+            await evaluateThresholdNudge()
+        }
+        if settings.nudgeEvery30MinutesEnabled {
+            await evaluatePeriodicNudge()
+        }
+    }
 
+    /// Fires when distracting time in the rolling window crosses the threshold.
+    private func evaluateThresholdNudge() async {
+        let settings = AppSettings.shared
+        let windowMinutes = settings.nudgeRollingWindowMinutes
+        let distractingMinutes = distractingMinutes(inLast: windowMinutes)
         guard distractingMinutes >= Double(settings.nudgeThresholdMinutes) else { return }
 
-        if let last = lastNudgeDate,
+        if let last = lastThresholdNudgeDate,
            Date().timeIntervalSince(last) < Double(settings.nudgeCooldownMinutes * 60) {
             return
         }
 
+        await postNudge(
+            distractingMinutes: distractingMinutes,
+            windowMinutes: windowMinutes
+        )
+        lastThresholdNudgeDate = Date()
+    }
+
+    /// Fires on a fixed 30-minute cadence with distracting time from the last 30 minutes.
+    private func evaluatePeriodicNudge() async {
+        let interval = Self.periodicIntervalMinutes
+        let distractingMinutes = distractingMinutes(inLast: interval)
+        guard distractingMinutes >= 1 else { return }
+
+        if let last = lastPeriodicNudgeDate,
+           Date().timeIntervalSince(last) < Double(interval * 60) {
+            return
+        }
+
+        await postNudge(
+            distractingMinutes: distractingMinutes,
+            windowMinutes: interval
+        )
+        let now = Date()
+        lastPeriodicNudgeDate = now
+        defaults.set(now, forKey: Self.lastPeriodicNudgeKey)
+    }
+
+    private func distractingMinutes(inLast windowMinutes: Int) -> Double {
+        let windowStart = Date().addingTimeInterval(-Double(windowMinutes * 60))
+        guard let seconds = try? DatabaseManager.shared.distractingDuration(since: windowStart) else { return 0 }
+        return seconds / 60
+    }
+
+    private func postNudge(distractingMinutes: Double, windowMinutes: Int) async {
         let content = UNMutableNotificationContent()
         content.title = "Off track?"
-        content.body = "You've spent \(Int(distractingMinutes)) min on distracting apps in the last \(settings.nudgeRollingWindowMinutes) minutes."
+        content.body = "You've spent \(Int(distractingMinutes)) min on distracting apps in the last \(windowMinutes) minutes."
         content.sound = .default
 
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
         try? await UNUserNotificationCenter.current().add(request)
-        lastNudgeDate = Date()
-        nudgeCountToday += 1
     }
 
     private func isQuietHours() -> Bool {

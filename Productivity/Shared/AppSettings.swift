@@ -135,6 +135,12 @@ final class AppSettings {
         set { defaults.set(newValue, forKey: "nudgeOnlyDuringWorkHours") }
     }
 
+    /// Posts the off-track nudge on a fixed cadence (last 30 minutes of distracting time).
+    var nudgeEvery30MinutesEnabled: Bool {
+        get { defaults.object(forKey: "nudgeEvery30MinutesEnabled") == nil ? true : defaults.bool(forKey: "nudgeEvery30MinutesEnabled") }
+        set { defaults.set(newValue, forKey: "nudgeEvery30MinutesEnabled") }
+    }
+
     var dailySummaryEnabled: Bool {
         get { defaults.object(forKey: "dailySummaryEnabled") == nil ? true : defaults.bool(forKey: "dailySummaryEnabled") }
         set { defaults.set(newValue, forKey: "dailySummaryEnabled") }
@@ -159,6 +165,19 @@ final class AppSettings {
     var weeklySummaryWeekday: Int {
         get { defaults.object(forKey: "weeklySummaryWeekday") == nil ? 1 : defaults.integer(forKey: "weeklySummaryWeekday") }
         set { defaults.set(newValue, forKey: "weeklySummaryWeekday") }
+    }
+
+    var intervalSummaryEnabled: Bool {
+        get { defaults.bool(forKey: "intervalSummaryEnabled") }
+        set { defaults.set(newValue, forKey: "intervalSummaryEnabled") }
+    }
+
+    var intervalSummaryMinutes: Int {
+        get {
+            let v = defaults.integer(forKey: "intervalSummaryMinutes")
+            return v > 0 ? v : 30
+        }
+        set { defaults.set(newValue, forKey: "intervalSummaryMinutes") }
     }
 
     var workContext: String {
