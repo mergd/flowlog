@@ -41,6 +41,11 @@ final class TrackingCoordinator: ObservableObject {
             FlowlogLog.tracking("Database setup failed: \(error.localizedDescription)")
         }
         RulesEngine.shared.reloadCache()
+        do {
+            try RulesEngine.shared.reapplyRulesToStoredSessions()
+        } catch {
+            FlowlogLog.tracking("Rule backfill failed: \(error.localizedDescription)")
+        }
         Task { await Classifier.shared.refreshAppleAvailability() }
 
         workspace.onActivate = { [weak self] app in

@@ -190,7 +190,43 @@ final class RulesEngine: @unchecked Sendable {
             try rule.insert(db)
         }
         reloadCache()
+        try reapplyRulesToStoredSessions()
         NotificationCenter.default.post(name: .productivityDataDidChange, object: nil)
+    }
+
+    /// Re-applies every stored user rule to past sessions. Manual corrections are
+    /// left alone. Called when rules change and once on startup to backfill history.
+    @discardableResult
+    func reapplyRulesToStoredSessions() throws -> Int {
+        try DatabaseManager.shared.queue.write { db in
+            let sessions = try Session.fetchAll(db)
+            var updated = 0
+            for var session in sessions {
+                guard session.categorySource != ClassificationSource.manual.rawValue else { continue }
+
+                let browserContext = SiteCatalog.parse(windowTitle: session.windowTitle)
+                let siteLabel = session.siteLabel ?? browserContext.siteLabel
+                guard let result = userRule(
+                    bundleId: session.bundleId,
+                    windowTitle: session.windowTitle,
+                    siteLabel: siteLabel
+                ) else { continue }
+
+                let categoryChanged = session.category != result.category.rawValue
+                let sourceChanged = session.categorySource != result.source.rawValue
+                let siteLabelChanged = result.siteLabel != nil && session.siteLabel != result.siteLabel
+                guard categoryChanged || sourceChanged || siteLabelChanged else { continue }
+
+                session.category = result.category.rawValue
+                session.categorySource = result.source.rawValue
+                if let label = result.siteLabel {
+                    session.siteLabel = label
+                }
+                try session.update(db)
+                updated += 1
+            }
+            return updated
+        }
     }
 
     func deleteRule(id: Int64) throws {
