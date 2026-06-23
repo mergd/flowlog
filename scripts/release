@@ -60,6 +60,12 @@ rm -rf "$dsym_store/Flowlog.app.dSYM"
 cp -R "$dsym_src" "$dsym_store/Flowlog.app.dSYM"
 dwarfdump --uuid "$dsym_src" | tee "$dsym_store/UUID.txt"
 
+entitlements="$root/Productivity/Productivity.entitlements"
+if [[ -d "$dist_dir/Flowlog.app/Contents/Frameworks/Sparkle.framework" ]]; then
+  echo "==> Re-signing Sparkle for notarization"
+  "$root/scripts/resign-sparkle.sh" "$dist_dir/Flowlog.app" "$entitlements"
+fi
+
 app_dist_zip=""
 if [[ "${NOTARIZE:-0}" == "1" ]]; then
   profile="${NOTARY_PROFILE:-flowlog-notary}"
