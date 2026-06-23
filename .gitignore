@@ -27,3 +27,13 @@ Productivity/Flowlog.icon/.previews/
 # Local env / secrets
 .env
 .env.*
+
+# Sparkle signing key export (private — keep in Keychain or 1Password)
+sparkle/eddsa_private.key
+
+# Downloaded Sparkle CLI tools
+build/sparkle-tools/
+
+# Local Sparkle release archives (appcast.xml is committed)
+updates/releases/
+updates/old_updates/

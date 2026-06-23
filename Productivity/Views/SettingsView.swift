@@ -1,4 +1,5 @@
 import AppKit
+import Sparkle
 import SwiftUI
 
 struct SettingsView: View {
@@ -88,6 +89,19 @@ struct SettingsView: View {
             }
 
             Section("About") {
+                LabeledContent("Version") {
+                    Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—")
+                        .foregroundStyle(.secondary)
+                }
+
+                Button("Check for Updates…") {
+                    SparkleUpdater.checkForUpdates()
+                }
+
+                Toggle("Automatically check for updates", isOn: sparkleBinding(\.automaticallyChecksForUpdates))
+                Toggle("Automatically download updates", isOn: sparkleBinding(\.automaticallyDownloadsUpdates))
+                    .disabled(!SparkleUpdater.updater.automaticallyChecksForUpdates)
+
                 Button("Show Setup Again…") {
                     AppSettings.shared.hasCompletedOnboarding = false
                     AppSettings.shared.onboardingResumeStep = nil
@@ -237,5 +251,12 @@ struct SettingsView: View {
 
     private func openAppleIntelligenceSettings() {
         SystemSettings.open(.appleIntelligence)
+    }
+
+    private func sparkleBinding(_ keyPath: ReferenceWritableKeyPath<SPUUpdater, Bool>) -> Binding<Bool> {
+        Binding(
+            get: { SparkleUpdater.updater[keyPath: keyPath] },
+            set: { SparkleUpdater.updater[keyPath: keyPath] = $0 }
+        )
     }
 }

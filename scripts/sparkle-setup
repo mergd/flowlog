@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# One-time Sparkle signing key setup for Flowlog.
+#
+# Generates an EdDSA keypair, stores the private key in your login keychain,
+# and writes SUPublicEDKey into Productivity/Info.plist.
+#
+# Usage:
+#   scripts/sparkle-setup
+#   scripts/sparkle-setup --export sparkle/eddsa_private.key   # backup private key
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$root"
+
+plist="$root/Productivity/Info.plist"
+export_path=""
+if [[ "${1:-}" == "--export" && -n "${2:-}" ]]; then
+  export_path="$2"
+fi
+
+echo "==> Generating Sparkle signing keys (private key → login keychain)"
+if ! "$root/scripts/sparkle-bin" generate_keys 2>&1 | tee /tmp/flowlog-sparkle-keys.txt; then
+  echo "generate_keys failed" >&2
+  exit 1
+fi
+public_key="$(awk -F'> ' '/SUPublicEDKey/{print $2; exit}' /tmp/flowlog-sparkle-keys.txt)"
+if [[ -z "$public_key" ]]; then
+  public_key="$("$root/scripts/sparkle-bin" generate_keys -p 2>/dev/null | tail -1 | tr -d '[:space:]')"
+fi
+if [[ -z "$public_key" ]]; then
+  echo "Failed to read SUPublicEDKey from generate_keys output" >&2
+  exit 1
+fi
+
+if [[ -n "$export_path" ]]; then
+  mkdir -p "$(dirname "$export_path")"
+  "$root/scripts/sparkle-bin" generate_keys -x "$export_path"
+  echo "Exported private key to $export_path (keep this secret)"
+fi
+
+/usr/libexec/PlistBuddy -c "Delete :SUPublicEDKey" "$plist" 2>/dev/null || true
+/usr/libexec/PlistBuddy -c "Add :SUPublicEDKey string $public_key" "$plist"
+
+echo
+echo "Sparkle public key installed in Productivity/Info.plist"
+echo "Feed URL: https://raw.githubusercontent.com/mergd/flowlog/main/updates/appcast.xml"
+echo
+echo "When you ship a release, run:"
+echo "  NOTARIZE=1 scripts/release"

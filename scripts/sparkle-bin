@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Resolve Sparkle CLI tools (generate_keys, sign_update, generate_appcast).
+# Downloads the official release tarball into build/sparkle-tools/ on first use.
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+tools_dir="$root/build/sparkle-tools"
+version="${SPARKLE_VERSION:-2.7.0}"
+bin_dir="$tools_dir/Sparkle-$version/bin"
+
+if [[ ! -x "$bin_dir/generate_keys" ]]; then
+  mkdir -p "$tools_dir"
+  archive="$tools_dir/Sparkle-$version.tar.xz"
+  if [[ ! -f "$archive" ]]; then
+    echo "==> Downloading Sparkle $version tools"
+    curl -fsSL "https://github.com/sparkle-project/Sparkle/releases/download/$version/Sparkle-$version.tar.xz" -o "$archive"
+  fi
+  tar -xf "$archive" -C "$tools_dir"
+  if [[ -d "$tools_dir/bin" ]]; then
+    mkdir -p "$(dirname "$bin_dir")"
+    mv "$tools_dir/bin" "$bin_dir"
+  fi
+fi
+
+if [[ ! -x "$bin_dir/generate_keys" ]]; then
+  echo "Sparkle tools missing at $bin_dir" >&2
+  exit 1
+fi
+
+tool="${1:-}"
+shift || true
+case "$tool" in
+  generate_keys|sign_update|generate_appcast)
+    exec "$bin_dir/$tool" "$@"
+    ;;
+  "")
+    echo "Usage: scripts/sparkle-bin <generate_keys|sign_update|generate_appcast> [args…]" >&2
+    exit 1
+    ;;
+  *)
+    echo "Unknown Sparkle tool: $tool" >&2
+    exit 1
+    ;;
+esac

@@ -11,6 +11,11 @@ set -euo pipefail
 #   scripts/release              # archive build → dist/Flowlog.app + dSYMs/<ver>/
 #   NOTARIZE=1 scripts/release   # also notarize + staple (needs a notarytool
 #                                #   keychain profile named in NOTARY_PROFILE)
+#                                # signs the Sparkle appcast when notarized
+#
+# Sparkle: when notarized, signs the app zip and refreshes updates/appcast.xml.
+# Run scripts/sparkle-setup once to install SUPublicEDKey. Push appcast.xml after
+# release so installed apps can auto-update.
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
@@ -68,6 +73,17 @@ if [[ "${NOTARIZE:-0}" == "1" ]]; then
   app_dist_zip="$build_dir/Flowlog-$tag-app.zip"
   rm -f "$app_dist_zip"
   ditto -c -k --keepParent "$dist_dir/Flowlog.app" "$app_dist_zip"
+
+  echo "==> Signing Sparkle update + refreshing appcast"
+  updates_dir="$root/updates"
+  releases_dir="$updates_dir/releases"
+  mkdir -p "$releases_dir"
+  cp -f "$app_dist_zip" "$releases_dir/$(basename "$app_dist_zip")"
+  "$root/scripts/sparkle-bin" generate_appcast \
+    --download-url-prefix "https://github.com/mergd/flowlog/releases/download/v$tag/" \
+    --link "https://github.com/mergd/flowlog" \
+    -o "$updates_dir/appcast.xml" \
+    "$releases_dir"
 fi
 
 # --- GitHub Release: dSYM (always) + the notarized app (when notarized) -------
@@ -93,3 +109,6 @@ fi
 echo
 echo "App:   $dist_dir/Flowlog.app${app_dist_zip:+  (notarized; $app_dist_zip)}"
 echo "dSYM:  $dsym_store/Flowlog.app.dSYM  (also on GitHub release v$tag)"
+if [[ -f "$root/updates/appcast.xml" && "${NOTARIZE:-0}" == "1" ]]; then
+  echo "Feed:  updates/appcast.xml  (commit + push so Sparkle clients see the update)"
+fi

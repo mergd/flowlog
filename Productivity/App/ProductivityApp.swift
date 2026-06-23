@@ -17,6 +17,12 @@ struct ProductivityApp: App {
         .windowStyle(.hiddenTitleBar)
         .defaultLaunchBehavior(.suppressed)
         .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") {
+                    SparkleUpdater.checkForUpdates()
+                }
+            }
+
             CommandGroup(replacing: .newItem) {
                 Button("Open Flowlog") {
                     WindowPresenter.openDashboard()

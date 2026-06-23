@@ -50,6 +50,7 @@
 		L0G1N1T3M4N4G3R5F1L3E0A /* LoginItemManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/App/LoginItemManager.swift"; sourceTree = SOURCE_ROOT; };
 		CL1T00L1N5T4LL3R5F1L3E0A /* CommandLineToolInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/App/CommandLineToolInstaller.swift"; sourceTree = SOURCE_ROOT; };
 		CR45HR3P0RT3R5F1L3R3F0A /* CrashReporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/App/CrashReporter.swift"; sourceTree = SOURCE_ROOT; };
+		SP4RKL3UPD4T3R5F1L3R3F0A /* SparkleUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/App/SparkleUpdater.swift"; sourceTree = SOURCE_ROOT; };
 		C1A5S51F1C4T10NTYP35F1L3 /* ClassificationTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Classification/ClassificationTypes.swift"; sourceTree = SOURCE_ROOT; };
 		EEE203EF4B1CEB2DB23F281B /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Shared/AppSettings.swift"; sourceTree = SOURCE_ROOT; };
 		A7C4T4L0G5H4R3D2F1L3E0A /* AppCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Productivity/Shared/AppCatalog.swift"; sourceTree = SOURCE_ROOT; };
@@ -111,6 +112,8 @@
 		L0G1N1T3M4N4G3R5F1L3E0B /* LoginItemManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = L0G1N1T3M4N4G3R5F1L3E0A /* LoginItemManager.swift */; };
 		CL1T00L1N5T4LL3R5F1L3E0B /* CommandLineToolInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = CL1T00L1N5T4LL3R5F1L3E0A /* CommandLineToolInstaller.swift */; };
 		CR45HR3P0RT3R5F1L3BLD0B /* CrashReporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = CR45HR3P0RT3R5F1L3R3F0A /* CrashReporter.swift */; };
+		SP4RKL3UPD4T3R5F1L3BLD0B /* SparkleUpdater.swift in Sources */ = {isa = PBXBuildFile; fileRef = SP4RKL3UPD4T3R5F1L3R3F0A /* SparkleUpdater.swift */; };
+		SP4RKL3FR4M3W0RK1NFR4M3W /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = SP4RKL3PR0DUCTD3P3ND3NC /* Sparkle */; };
 		C1A5S51F1C4T10NTYP35F1L4 /* ClassificationTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A5S51F1C4T10NTYP35F1L3 /* ClassificationTypes.swift */; };
 		6D96CD6327BAC456381E0EA5 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEE203EF4B1CEB2DB23F281B /* AppSettings.swift */; };
 		A7C4T4L0G5H4R3D2F1L3E0B /* AppCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7C4T4L0G5H4R3D2F1L3E0A /* AppCatalog.swift */; };
@@ -163,6 +166,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				334F88284D60777BDEE67455 /* GRDB in Frameworks */,
+				SP4RKL3FR4M3W0RK1NFR4M3W /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -184,6 +188,7 @@
 				L0G1N1T3M4N4G3R5F1L3E0B /* LoginItemManager.swift in Sources */,
 				CL1T00L1N5T4LL3R5F1L3E0B /* CommandLineToolInstaller.swift in Sources */,
 				CR45HR3P0RT3R5F1L3BLD0B /* CrashReporter.swift in Sources */,
+				SP4RKL3UPD4T3R5F1L3BLD0B /* SparkleUpdater.swift in Sources */,
 				C1A5S51F1C4T10NTYP35F1L4 /* ClassificationTypes.swift in Sources */,
 				6D96CD6327BAC456381E0EA5 /* AppSettings.swift in Sources */,
 				A7C4T4L0G5H4R3D2F1L3E0B /* AppCatalog.swift in Sources */,
@@ -257,6 +262,7 @@
 				L0G1N1T3M4N4G3R5F1L3E0A /* LoginItemManager.swift */,
 				CL1T00L1N5T4LL3R5F1L3E0A /* CommandLineToolInstaller.swift */,
 				CR45HR3P0RT3R5F1L3R3F0A /* CrashReporter.swift */,
+				SP4RKL3UPD4T3R5F1L3R3F0A /* SparkleUpdater.swift */,
 				C1A5S51F1C4T10NTYP35F1L3 /* ClassificationTypes.swift */,
 				EEE203EF4B1CEB2DB23F281B /* AppSettings.swift */,
 				A7C4T4L0G5H4R3D2F1L3E0A /* AppCatalog.swift */,
@@ -334,6 +340,7 @@
 			name = Productivity;
 			packageProductDependencies = (
 				43823E14BB3DDA5E591B59F8 /* GRDB */,
+				SP4RKL3PR0DUCTD3P3ND3NC /* Sparkle */,
 			);
 			productName = Flowlog;
 			productReference = F5BF48AA40CAD7891EB709FC /* Flowlog.app */;
@@ -350,6 +357,7 @@
 			mainGroup = 8EE4FD3DC0DB94B2F30E967D;
 			packageReferences = (
 				FA2BC552446B3A2803F239B2 /* XCRemoteSwiftPackageReference "GRDB" */,
+				SP4RKL3P4CK4G3R3F3R3NC3 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			productRefGroup = A8CBE22D73EBCC4E5F27B59C /* Products */;
 			projectDirPath = "";
@@ -368,6 +376,16 @@
 			package = FA2BC552446B3A2803F239B2 /* XCRemoteSwiftPackageReference "GRDB" */;
 			productName = GRDB;
 		};
+		SP4RKL3P4CK4G3R3F3R3NC3 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {kind = upToNextMajorVersion; minimumVersion = 2.7.0;};
+		};
+		SP4RKL3PR0DUCTD3P3ND3NC /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = SP4RKL3P4CK4G3R3F3R3NC3 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
 		CED909F3617B90BA94B5017C /* Build configuration list for PBXNativeTarget */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -385,7 +403,7 @@
 				CODE_SIGN_IDENTITY = "Developer ID Application";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 9325ZRF44L;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -410,7 +428,7 @@
 				CODE_SIGN_IDENTITY = "Developer ID Application";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 9325ZRF44L;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
