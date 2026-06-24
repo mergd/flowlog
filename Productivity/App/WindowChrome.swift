@@ -73,4 +73,68 @@ extension View {
     func observeWindowChrome(id: String) -> some View {
         background(WindowChromeObserver(windowID: id))
     }
+
+    /// Keeps sidebar list items below the traffic lights while the sidebar
+    /// background extends under them.
+    func sidebarTitleBarInset() -> some View {
+        modifier(SidebarTitleBarInsetModifier())
+    }
+}
+
+private struct SidebarTitleBarInsetModifier: ViewModifier {
+    @State private var titleBarInset: CGFloat = 28
+
+    func body(content: Content) -> some View {
+        content
+            .background(WindowTitleBarInsetReader(inset: $titleBarInset))
+            .safeAreaInset(edge: .top, spacing: 0) {
+                Color.clear.frame(height: titleBarInset)
+            }
+    }
+}
+
+private struct WindowTitleBarInsetReader: NSViewRepresentable {
+    @Binding var inset: CGFloat
+
+    func makeNSView(context: Context) -> WindowTitleBarInsetView {
+        WindowTitleBarInsetView(inset: $inset)
+    }
+
+    func updateNSView(_ nsView: WindowTitleBarInsetView, context: Context) {
+        nsView.inset = $inset
+        nsView.refresh()
+    }
+}
+
+private final class WindowTitleBarInsetView: NSView {
+    var inset: Binding<CGFloat>
+
+    init(inset: Binding<CGFloat>) {
+        self.inset = inset
+        super.init(frame: .zero)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        refresh()
+    }
+
+    override func layout() {
+        super.layout()
+        refresh()
+    }
+
+    func refresh() {
+        guard let window else { return }
+        let measured = max(0, window.frame.height - window.contentLayoutRect.height)
+        let resolved = measured > 0 ? measured : 28
+        if abs(inset.wrappedValue - resolved) > 0.5 {
+            inset.wrappedValue = resolved
+        }
+    }
 }
