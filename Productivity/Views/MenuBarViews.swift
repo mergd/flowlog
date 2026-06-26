@@ -214,6 +214,13 @@ struct MenuBarPanel: View {
                     }
                 }
             }
+
+            Divider()
+                .padding(.vertical, 3)
+
+            MenuBarRow(title: "Quit Flowlog", systemImage: "power") {
+                NSApp.terminate(nil)
+            }
         }
         .padding(5)
     }
