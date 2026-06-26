@@ -53,8 +53,15 @@ enum WindowTitleReader {
     /// Arc, whose toolbar is custom but whose web area is still Chromium).
     /// Fallback: the address-bar text field's value (display URL).
     static func focusedURL(for app: NSRunningApplication) -> String? {
-        let appElement = AXUIElementCreateApplication(app.processIdentifier)
-        enableManualAccessibility(appElement, pid: app.processIdentifier)
+        focusedURL(forPID: app.processIdentifier)
+    }
+
+    /// PID-based variant so the (potentially expensive) AX subtree walk can run
+    /// off the main actor — `pid_t` is Sendable, `NSRunningApplication` is not.
+    /// The Accessibility API is callable from any thread.
+    static func focusedURL(forPID pid: pid_t) -> String? {
+        let appElement = AXUIElementCreateApplication(pid)
+        enableManualAccessibility(appElement, pid: pid)
         var windowRef: CFTypeRef?
         guard AXUIElementCopyAttributeValue(appElement, kAXFocusedWindowAttribute as CFString, &windowRef) == .success,
               let window = windowRef, let root = axUIElement(from: window) else { return nil }

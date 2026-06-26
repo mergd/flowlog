@@ -28,6 +28,21 @@ actor Classifier {
         // Live AI runs only for genuinely unknown / ambiguous contexts.
         let aiEnabled = await MainActor.run { AppSettings.shared.aiClassificationEnabled }
         if aiEnabled, !shouldDebounce(request: request, force: force) {
+            // A text-only request with no real context (title missing, equal to the
+            // app name, or a generic placeholder) gives the model nothing to reason
+            // about — it just coin-flips, which is what produced the same app
+            // flip-flopping across productive/distracting/neutral. Abstain instead.
+            // The vision path (imageData != nil) still runs: a screenshot is context.
+            if request.imageData == nil,
+               Self.isContextlessForAI(title: request.windowTitle, appName: request.appName) {
+                return uncategorized(
+                    siteLabel: SiteCatalog.sanitizedSiteLabel(
+                        browserContext.siteLabel,
+                        bundleId: request.bundleId,
+                        appName: request.appName
+                    )
+                )
+            }
             if let result = await runAI(request) {
                 return result
             }
@@ -82,6 +97,19 @@ actor Classifier {
             windowTitle: request.windowTitle,
             siteLabel: browserContext.siteLabel
         )
+    }
+
+    /// A window title carries no signal the model could classify on: it's missing,
+    /// just the app's own name, or a generic placeholder. Asking the AI to judge
+    /// these yields inconsistent guesses, so we abstain to uncategorized instead.
+    private static func isContextlessForAI(title: String?, appName: String) -> Bool {
+        guard let raw = title?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else {
+            return true
+        }
+        let lower = raw.lowercased()
+        if lower == appName.lowercased() { return true }
+        let placeholders: Set<String> = ["untitled", "new tab", "new window"]
+        return placeholders.contains(lower)
     }
 
     private func shouldDebounce(request: ClassificationRequest, force: Bool) -> Bool {

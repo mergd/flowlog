@@ -13,6 +13,13 @@ final class NudgeEngine {
     private static let lastPeriodicNudgeKey = "nudgeEngine.lastPeriodicNudge"
     private static let periodicIntervalMinutes = 30
 
+    /// Recent window used to decide whether the user is currently focused. The rolling nudge
+    /// windows look back far enough to include earlier distractions; this short window reflects
+    /// what you're doing *now*.
+    private static let recentFocusWindowMinutes = 5
+    /// Minimum productive seconds in the recent window before we treat you as focused.
+    private static let recentFocusMinProductiveSeconds: TimeInterval = 60
+
     func start() {
         requestPermissionIfNeeded()
         lastPeriodicNudgeDate = defaults.object(forKey: Self.lastPeriodicNudgeKey) as? Date
@@ -39,6 +46,7 @@ final class NudgeEngine {
         guard settings.nudgesEnabled || settings.nudgeEvery30MinutesEnabled else { return }
         guard !isQuietHours() else { return }
         if settings.nudgeOnlyDuringWorkHours, !isWorkHours() { return }
+        guard !isRecentlyFocused() else { return }
 
         if settings.nudgesEnabled {
             await evaluateThresholdNudge()
@@ -85,6 +93,18 @@ final class NudgeEngine {
         let now = Date()
         lastPeriodicNudgeDate = now
         defaults.set(now, forKey: Self.lastPeriodicNudgeKey)
+    }
+
+    /// True when recent activity is dominated by productive time, meaning the user is heads-down
+    /// right now even if the rolling window still contains earlier distractions. Suppresses nudges
+    /// so we don't scold someone who has already gotten back on track.
+    private func isRecentlyFocused() -> Bool {
+        let windowStart = Date().addingTimeInterval(-Double(Self.recentFocusWindowMinutes * 60))
+        guard let balance = try? DatabaseManager.shared.recentFocusBalance(since: windowStart) else {
+            return false
+        }
+        return balance.productive >= Self.recentFocusMinProductiveSeconds
+            && balance.productive > balance.distracting
     }
 
     private func distractingMinutes(inLast windowMinutes: Int) -> Double {

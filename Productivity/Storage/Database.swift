@@ -265,6 +265,28 @@ final class DatabaseManager: @unchecked Sendable {
         }
     }
 
+    /// Productive vs distracting non-idle seconds since `since`. Used to detect whether the
+    /// user is currently focused, independent of the longer rolling nudge window.
+    func recentFocusBalance(since: Date) throws -> (productive: TimeInterval, distracting: TimeInterval) {
+        try queue.read { db in
+            let rows = try Session
+                .filter(Session.Columns.start >= since)
+                .filter(Session.Columns.idleExcluded == false)
+                .filter(Session.Columns.userDeleted == false)
+                .fetchAll(db)
+            var productive: TimeInterval = 0
+            var distracting: TimeInterval = 0
+            for row in rows {
+                switch row.activityCategory {
+                case .productive: productive += row.duration
+                case .distracting: distracting += row.duration
+                default: break
+                }
+            }
+            return (productive, distracting)
+        }
+    }
+
     func usageBreakdownToday() throws -> [AppUsageGroup] {
         let sessions = try includedSessionsToday()
         var appMap: [String: (appName: String, duration: TimeInterval, category: String)] = [:]

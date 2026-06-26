@@ -58,6 +58,18 @@ actor SessionRecorder {
         guard let id = currentSessionId else { return }
         try await DatabaseManager.shared.queue.write { db in
             if var session = try Session.fetchOne(db, key: id) {
+                var category = category
+                var source = source
+                // Authority guard: an AI verdict (live or cached) must never override a
+                // hardcoded non-browser app. For editors/IDEs/terminals the app *is* the
+                // intent, so pin to the catalog regardless of what the AI guessed. This
+                // closes a race where a stale bundleId routed a known dev app to the AI.
+                if source.isAIDerived,
+                   !BrowserDetector.isBrowser(session.bundleId),
+                   let pinned = AppCatalog.classification(for: session.bundleId) {
+                    category = pinned.category
+                    source = pinned.source
+                }
                 // Never let a later abstention (AI/screenshot returning
                 // uncategorized) erase a category we already resolved — e.g. a
                 // known-site default. Abstaining is not a verdict.

@@ -44,6 +44,15 @@ enum ClassificationSource: String, Codable, Sendable {
     case apple         // live on-device AI
     case openRouter    // live remote AI
     case fallback      // no signal — abstained to uncategorized
+
+    /// AI-derived verdicts (live or cached). These are guesses and must never
+    /// override a deterministic authority such as a hardcoded app catalog entry.
+    var isAIDerived: Bool {
+        switch self {
+        case .cachedAI, .apple, .openRouter: return true
+        case .rule, .manual, .appCatalog, .siteCatalog, .fallback: return false
+        }
+    }
 }
 
 enum FocusScore {

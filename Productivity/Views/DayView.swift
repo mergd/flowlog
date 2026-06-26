@@ -22,6 +22,11 @@ struct DayView: View {
     @State private var pauses: [Pause] = []
     @State private var totals: [String: TimeInterval] = [:]
     @State private var topicTotals: [String: TimeInterval] = [:]
+    // Derived data is memoized here and rebuilt only in `reload()`. It used to be
+    // recomputed inside `body` (bins 3x per render, the timeline sort chain once),
+    // which made every 2-second data notification re-run all of it on the main thread.
+    @State private var cachedBins: [UsageBin] = []
+    @State private var cachedTimeline: [TimelineItem] = []
     @State private var selectedScreenshot: String?
     @State private var reclassifyTarget: ReclassifyTarget?
     @State private var selectedBinId: Int?
@@ -47,7 +52,7 @@ struct DayView: View {
                     VStack(alignment: .leading, spacing: 20) {
                         statsRow
                         UsageBarChart(
-                            bins: bins,
+                            bins: cachedBins,
                             order: categoryOrder,
                             inProgressBinId: inProgressBinId,
                             inProgressFraction: inProgressFraction,
@@ -254,7 +259,7 @@ struct DayView: View {
     }
 
     private var blockList: some View {
-        VStack(spacing: 0) {
+        LazyVStack(spacing: 0) {
             let ordered = filteredBlocks
             ForEach(ordered) { block in
                 BlockRowView(block: block)
@@ -280,7 +285,7 @@ struct DayView: View {
     private var sessionList: some View {
         VStack(alignment: .leading, spacing: 6) {
             let items = displayedTimelineItems
-            VStack(spacing: 0) {
+            LazyVStack(spacing: 0) {
                 ForEach(items) { item in
                     switch item {
                     case let .session(item):
@@ -366,7 +371,7 @@ struct DayView: View {
     }
 
     private var weekDayList: some View {
-        let days = bins.filter { $0.total > 0 }.reversed().map { $0 }
+        let days = cachedBins.filter { $0.total > 0 }.reversed().map { $0 }
         return VStack(alignment: .leading, spacing: 6) {
             Text("Days")
                 .font(.subheadline.weight(.medium))
@@ -467,7 +472,7 @@ struct DayView: View {
         range.upperBound > Date()
     }
 
-    private var bins: [UsageBin] {
+    private func makeBins() -> [UsageBin] {
         let (starts, size) = binLayout()
         let now = Date()
         // Keep the whole day/week on the axis; slots that haven't started yet are
@@ -504,7 +509,7 @@ struct DayView: View {
         guard isCurrentPeriod else { return nil }
         let now = Date()
         let size: TimeInterval = scope == .day ? 3600 : 86400
-        return bins.first { $0.date <= now && now < $0.date.addingTimeInterval(size) }?.id
+        return cachedBins.first { $0.date <= now && now < $0.date.addingTimeInterval(size) }?.id
     }
 
     /// How far through the in-progress slot (hour/day) we currently are, 0…1.
@@ -512,7 +517,7 @@ struct DayView: View {
         guard isCurrentPeriod else { return 0 }
         let now = Date()
         let size: TimeInterval = scope == .day ? 3600 : 86400
-        guard let bin = bins.first(where: { $0.date <= now && now < $0.date.addingTimeInterval(size) }) else { return 0 }
+        guard let bin = cachedBins.first(where: { $0.date <= now && now < $0.date.addingTimeInterval(size) }) else { return 0 }
         return min(1, max(0, now.timeIntervalSince(bin.date) / size))
     }
 
@@ -559,7 +564,7 @@ struct DayView: View {
     /// The hour range the user drilled into via the bar chart, if any.
     private var selectedHourRange: Range<Date>? {
         guard scope == .day, let id = selectedBinId,
-              let bin = bins.first(where: { $0.id == id }) else { return nil }
+              let bin = cachedBins.first(where: { $0.id == id }) else { return nil }
         return bin.date ..< bin.date.addingTimeInterval(3600)
     }
 
@@ -583,7 +588,7 @@ struct DayView: View {
     // MARK: - Data
 
     /// Sessions interleaved (newest first) with "untracked" gaps longer than the threshold.
-    private var timelineItems: [TimelineItem] {
+    private func makeTimeline() -> [TimelineItem] {
         let chrono = mergedSessions.sorted { $0.session.start < $1.session.start }
         var items: [TimelineItem] = []
         for (index, item) in chrono.enumerated() {
@@ -605,8 +610,8 @@ struct DayView: View {
 
     /// Timeline items, filtered to the drilled-in hour when one is selected.
     private var displayedTimelineItems: [TimelineItem] {
-        guard let range = selectedHourRange else { return timelineItems }
-        return timelineItems.filter { item in
+        guard let range = selectedHourRange else { return cachedTimeline }
+        return cachedTimeline.filter { item in
             switch item {
             case let .session(item):
                 let session = item.session
@@ -646,11 +651,36 @@ struct DayView: View {
 
     private func reload() {
         let r = range
-        sessions = DashboardData.sessions(in: r)
-        blocks = scope == .day ? DashboardData.blocks(in: r) : []
-        pauses = DashboardData.pauses(in: r)
-        totals = DashboardData.categoryTotals(in: r)
-        topicTotals = DashboardData.topicTotals(in: r)
+        let isDay = scope == .day
+        // The five DB reads ran synchronously on the main thread on every appear
+        // and on every ~2s data notification. Move them off-main and assign the
+        // results back on the main actor.
+        Task { @MainActor in
+            let fetched = await Task.detached(priority: .userInitiated) { () -> Fetched in
+                Fetched(
+                    sessions: DashboardData.sessions(in: r),
+                    blocks: isDay ? DashboardData.blocks(in: r) : [],
+                    pauses: DashboardData.pauses(in: r),
+                    totals: DashboardData.categoryTotals(in: r),
+                    topicTotals: DashboardData.topicTotals(in: r)
+                )
+            }.value
+            sessions = fetched.sessions
+            blocks = fetched.blocks
+            pauses = fetched.pauses
+            totals = fetched.totals
+            topicTotals = fetched.topicTotals
+            cachedBins = makeBins()
+            cachedTimeline = makeTimeline()
+        }
+    }
+
+    private struct Fetched: Sendable {
+        let sessions: [Session]
+        let blocks: [ActivityBlock]
+        let pauses: [Pause]
+        let totals: [String: TimeInterval]
+        let topicTotals: [String: TimeInterval]
     }
 
     /// Topics with tracked time, largest first. The orthogonal genre axis

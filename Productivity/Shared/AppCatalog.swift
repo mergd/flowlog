@@ -34,6 +34,8 @@ enum AppCatalog {
         "com.microsoft.VSCode": ("VS Code", .productive),
         "com.apple.Terminal": ("Terminal", .productive),
         "com.googlecode.iterm2": ("iTerm", .productive),
+        "com.cmuxterm.app": ("cmux", .productive),
+        "com.openai.codex": ("Codex", .productive),
         "com.github.GitHubClient": ("GitHub", .productive),
         "com.sublimetext.4": ("Sublime Text", .productive),
         "com.jetbrains.intellij": ("IntelliJ", .productive),

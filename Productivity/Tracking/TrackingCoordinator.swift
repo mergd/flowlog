@@ -13,9 +13,19 @@ final class TrackingCoordinator: ObservableObject {
 
     private var currentApp: NSRunningApplication?
     private var currentTitle: String?
+    /// An app switch only commits to a session after the app has held focus for this
+    /// long. Bouncing through apps faster than this (alt-tab flicker) never opens a
+    /// session, which is what produced the storm of sub-2s micro-sessions.
+    private let appSwitchDwellInterval: TimeInterval = 2
+    private var pendingApp: NSRunningApplication?
+    private var pendingSwitchTask: Task<Void, Never>?
     private var lastBrowserContext: ParsedBrowserContext = .empty
     private var lastScreenshotDate: Date?
     private let screenshotInterval: TimeInterval = 60
+    /// Captures triggered by tab/app switches (not the periodic timer) are throttled
+    /// to this floor so rapid switching can't fire the capture+encode pipeline
+    /// back-to-back. Shorter than `screenshotInterval` to still capture most context.
+    private let switchScreenshotInterval: TimeInterval = 8
 
     @Published var isTracking = false
     @Published private(set) var menuBarSession: MenuBarSessionInfo?
@@ -49,11 +59,12 @@ final class TrackingCoordinator: ObservableObject {
         Task { await Classifier.shared.refreshAppleAvailability() }
 
         workspace.onActivate = { [weak self] app in
-            Task { await self?.handleAppSwitch(app) }
+            self?.requestAppSwitch(app)
         }
         workspace.onSleep = { [weak self] in
+            guard let self else { return }
+            self.cancelPendingSwitch()
             Task {
-                guard let self else { return }
                 await self.track("close session on sleep") { try await self.recorder.closeCurrentSession() }
             }
         }
@@ -68,6 +79,7 @@ final class TrackingCoordinator: ObservableObject {
 
     func stop() {
         workspace.stop()
+        cancelPendingSwitch()
         invalidateTimers()
         snoozeTimer?.invalidate()
         snoozeTimer = nil
@@ -105,6 +117,7 @@ final class TrackingCoordinator: ObservableObject {
     func snooze(for duration: TimeInterval) {
         guard isTracking else { return }
         snoozedUntil = Date().addingTimeInterval(duration)
+        cancelPendingSwitch()
         invalidateTimers()
         NudgeEngine.shared.stop()
         Task { await track("close on snooze") { try await recorder.closeCurrentSession() } }
@@ -136,6 +149,40 @@ final class TrackingCoordinator: ObservableObject {
         refreshMenuBarSession()
     }
 
+    /// Schedule a switch to `app`, committing only after it holds focus for the dwell
+    /// interval. Rapid switching repeatedly reschedules, so transient apps never commit.
+    private func requestAppSwitch(_ app: NSRunningApplication) {
+        if app == currentApp {
+            cancelPendingSwitch()
+            return
+        }
+        if app == pendingApp { return }  // already scheduled — let the timer ride
+
+        cancelPendingSwitch()
+        pendingApp = app
+        pendingSwitchTask = Task { [weak self] in
+            guard let self else { return }
+            let dwell = await MainActor.run { self.appSwitchDwellInterval }
+            try? await Task.sleep(nanoseconds: UInt64(dwell * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            await self.commitAppSwitch(app)
+        }
+    }
+
+    private func commitAppSwitch(_ app: NSRunningApplication) async {
+        guard pendingApp == app else { return }
+        pendingApp = nil
+        pendingSwitchTask = nil
+        await handleAppSwitch(app)
+        refreshMenuBarSession()
+    }
+
+    private func cancelPendingSwitch() {
+        pendingSwitchTask?.cancel()
+        pendingSwitchTask = nil
+        pendingApp = nil
+    }
+
     private func handleAppSwitch(_ app: NSRunningApplication) async {
         if let prev = currentApp, BrowserDetector.isBrowser(prev.bundleIdentifier ?? "") {
             await captureAndClassify(app: prev, title: currentTitle, reason: .leaveBrowser)
@@ -154,9 +201,13 @@ final class TrackingCoordinator: ObservableObject {
         let bundleId = app.bundleIdentifier ?? ""
 
         if app != currentApp {
-            await handleAppSwitch(app)
+            requestAppSwitch(app)
             return
         }
+        // Frontmost is the committed app again — if a switch to something else was
+        // pending (we briefly tabbed away and came back), drop it so the glance
+        // never becomes its own session.
+        if pendingApp != nil { cancelPendingSwitch() }
 
         let title = readTitle(for: app)
 
@@ -184,7 +235,7 @@ final class TrackingCoordinator: ObservableObject {
             let previousContext = lastBrowserContext
             // resolvedBrowserContext reads the live URL and updates lastBrowserContext,
             // so compare the new context against the previous poll's stored value.
-            let newContext = resolvedBrowserContext(app: app, title: title, bundleId: bundleId)
+            let newContext = await resolvedBrowserContext(app: app, title: title, bundleId: bundleId)
 
             if SiteCatalog.domainChanged(from: previousContext, to: newContext) {
                 await captureAndClassify(app: app, title: currentTitle, reason: .tabChange)
@@ -242,29 +293,39 @@ final class TrackingCoordinator: ObservableObject {
         let settings = AppSettings.shared
         if settings.blocklistedBundleIds.contains(bundleId) { return }
 
-        guard let raw = await DesktopScreenshotCapture.captureFullDesktop() else { return }
-
-        let windows = WindowTitleReader.allVisibleWindowFrames()
-        let focusedFrame = WindowTitleReader.focusedWindowFrame(for: app)
-        let redacted = ScreenshotPreprocessor.redact(
-            image: raw,
-            context: .init(
-                focusedBundleId: bundleId,
-                focusedWindowFrame: focusedFrame,
-                blocklistedBundleIds: settings.blocklistedBundleIds,
-                aggressive: settings.aggressiveRedaction,
-                allWindows: windows
-            )
-        ) ?? raw
-
-        guard let jpeg = ScreenshotPreprocessor.jpegData(from: redacted) else { return }
-        let screenshotId: String
-        do {
-            screenshotId = try ScreenshotStore.shared.save(jpegData: jpeg)
-        } catch {
-            FlowlogLog.tracking("Screenshot save failed: \(error.localizedDescription)")
+        // Throttle switch-driven captures. The periodic timer already enforces its
+        // own interval, but the tab/browser-switch paths had no floor, so rapid
+        // switching could fire the capture+encode pipeline several times a second.
+        if reason != .periodic, let last = lastScreenshotDate,
+           Date().timeIntervalSince(last) < switchScreenshotInterval {
             return
         }
+
+        guard let raw = await DesktopScreenshotCapture.captureFullDesktop() else { return }
+        guard let cgImage = raw.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
+        let imageSize = raw.size
+
+        let redactionContext = ScreenshotPreprocessor.RedactionContext(
+            focusedBundleId: bundleId,
+            focusedWindowFrame: WindowTitleReader.focusedWindowFrame(for: app),
+            blocklistedBundleIds: settings.blocklistedBundleIds,
+            aggressive: settings.aggressiveRedaction,
+            allWindows: WindowTitleReader.allVisibleWindowFrames()
+        )
+
+        // Redaction, downscaling, JPEG encoding and the disk write are all heavy
+        // CPU/IO. Run them off the main actor so capturing a screenshot never
+        // stalls the UI. Only Sendable values cross the boundary.
+        let encoded: (jpeg: Data, id: String)? = await Task.detached(priority: .utility) {
+            guard let jpeg = ScreenshotPreprocessor.redactedJPEG(
+                cgImage: cgImage,
+                imageSize: imageSize,
+                context: redactionContext
+            ) else { return nil }
+            guard let id = try? ScreenshotStore.shared.save(jpegData: jpeg) else { return nil }
+            return (jpeg, id)
+        }.value
+        guard let (jpeg, screenshotId) = encoded else { return }
         lastScreenshotDate = Date()
 
         let request = ClassificationRequest(
@@ -293,7 +354,14 @@ final class TrackingCoordinator: ObservableObject {
 
         let appName = AppCatalog.friendlyName(bundleId: bundleId, fallback: app.localizedName ?? bundleId)
         let isBrowser = BrowserDetector.isBrowser(bundleId)
-        let browserContext = isBrowser ? (context ?? resolvedBrowserContext(app: app, title: title, bundleId: bundleId)) : .empty
+        let browserContext: ParsedBrowserContext
+        if !isBrowser {
+            browserContext = .empty
+        } else if let context {
+            browserContext = context
+        } else {
+            browserContext = await resolvedBrowserContext(app: app, title: title, bundleId: bundleId)
+        }
 
         if isBrowser, !SiteCatalog.shouldTrack(domain: browserContext.domain, pageTitle: browserContext.pageTitle, windowTitle: title) {
             if await recorder.hasActiveSession(for: bundleId) {
@@ -447,10 +515,18 @@ final class TrackingCoordinator: ObservableObject {
         FlowlogLog.tracking("Accessibility health changed: \(healthy ? "healthy" : "degraded")")
     }
 
-    private func resolvedBrowserContext(app: NSRunningApplication, title: String?, bundleId: String) -> ParsedBrowserContext {
+    private func resolvedBrowserContext(app: NSRunningApplication, title: String?, bundleId: String) async -> ParsedBrowserContext {
+        // Read the canonical URL off the main actor: the AX subtree walk is a
+        // bounded breadth-first scan of up to 2500 nodes, each a synchronous
+        // cross-process IPC call, and used to run inline on every tab change.
+        let pid = app.processIdentifier
+        let liveURL = await Task.detached(priority: .userInitiated) {
+            WindowTitleReader.focusedURL(forPID: pid)
+        }.value
+
         // Prefer the canonical URL read straight from the AX web area; fall back to
         // guessing the site from the window title only when the URL is unavailable.
-        if let url = WindowTitleReader.focusedURL(for: app) {
+        if let url = liveURL {
             let fromURL = SiteCatalog.parse(urlString: url)
             if fromURL.domain != nil {
                 let pageTitle = SiteCatalog.parse(windowTitle: title).pageTitle
